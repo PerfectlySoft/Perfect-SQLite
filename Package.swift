@@ -20,9 +20,10 @@
 import PackageDescription
 
 let package = Package(
-	name: "SQLite3",
+	name: "SQLite",
 	targets: [
-		
+		Target(name: "SQLite", dependencies: [.Target(name: "SQLite3")]),
+	    Target(name: "SQLite3")
 	],
 	dependencies: [
 		

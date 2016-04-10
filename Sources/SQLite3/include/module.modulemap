@@ -1,4 +1,4 @@
-module SQLite3 [system] {
-    header "sqlite3/sqlite3.h"
+module SQLite3 {
+    header "p_sqlite3.h"
     export *
 }

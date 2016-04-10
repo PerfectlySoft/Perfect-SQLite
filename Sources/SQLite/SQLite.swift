@@ -22,21 +22,21 @@ import SQLite3
 import SwiftGlibc
 #endif
 /// This enum type indicates an exception when dealing with a SQLite database
-public enum SQLiteError : ErrorType {
+public enum SQLiteError : ErrorProtocol {
 	/// A SQLite error code and message.
 	case Error(code: Int, msg: String)
 }
 
 /// A SQLite database
-public class SQLite : Closeable {
+public class SQLite {
 
 	let path: String
-	var sqlite3: COpaquePointer
+	var sqlite3: OpaquePointer
 
 	/// Create or open a SQLite database given a file path.
 	public init(_ path: String, readOnly: Bool = false) throws {
 		self.path = path
-		self.sqlite3 = COpaquePointer(nilLiteral: ())
+		self.sqlite3 = OpaquePointer(nilLiteral: ())
 		let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE
 		let res = sqlite3_open_v2(path, &self.sqlite3, flags, nil)
 		if res != SQLITE_OK {
@@ -59,7 +59,7 @@ public class SQLite : Closeable {
 	/// Compile the SQL statement.
 	/// - returns: A SQLiteStmt object representing the compiled statement.
 	public func prepare(stat: String) throws -> SQLiteStmt {
-		var statPtr = COpaquePointer(nilLiteral: ())
+		var statPtr = OpaquePointer(nilLiteral: ())
 		let tail = UnsafeMutablePointer<UnsafePointer<Int8>>(nil)
 		let res = sqlite3_prepare_v2(self.sqlite3, stat, Int32(stat.utf8.count), &statPtr, tail)
 		try checkRes(res)
@@ -92,7 +92,7 @@ public class SQLite : Closeable {
 
 	/// Returns the value of `sqlite3_errmsg`.
 	public func errMsg() -> String {
-		return String.fromCString(sqlite3_errmsg(self.sqlite3))!
+		return String(validatingUTF8: sqlite3_errmsg(self.sqlite3))!
 	}
 
 	/// Execute the given statement. Assumes there will be no parameter binding or resulting row data.
@@ -202,20 +202,20 @@ public class SQLite : Closeable {
 
 	func checkRes(res: Int) throws {
 		if res != Int(SQLITE_OK) {
-			throw SQLiteError.Error(code: res, msg: String.fromCString(sqlite3_errmsg(self.sqlite3))!)
+			throw SQLiteError.Error(code: res, msg: String(validatingUTF8: sqlite3_errmsg(self.sqlite3))!)
 		}
 	}
 }
 
 /// A compiled SQLite statement
-public class SQLiteStmt : Closeable {
+public class SQLiteStmt {
 
-	let db: COpaquePointer
-	var stat: COpaquePointer?
+	let db: OpaquePointer
+	var stat: OpaquePointer?
 
 	typealias sqlite_destructor = @convention(c) (UnsafeMutablePointer<Void>) -> Void
 
-	init(db: COpaquePointer, stat: COpaquePointer) {
+	init(db: OpaquePointer, stat: OpaquePointer) {
 		self.db = db
 		self.stat = stat
 	}
@@ -263,17 +263,17 @@ public class SQLiteStmt : Closeable {
 
 	/// Bind the String value to the indicated parameter.
 	public func bind(position: Int, _ s: String) throws {
-		try checkRes(sqlite3_bind_text(self.stat!, Int32(position), s, Int32(s.utf8.count), unsafeBitCast(COpaquePointer(bitPattern: -1), sqlite_destructor.self)))
+		try checkRes(sqlite3_bind_text(self.stat!, Int32(position), s, Int32(s.utf8.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
 	/// Bind the [Int8] blob value to the indicated parameter.
 	public func bind(position: Int, _ b: [Int8]) throws {
-		try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), b, Int32(b.count), unsafeBitCast(COpaquePointer(bitPattern: -1), sqlite_destructor.self)))
+		try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
 	/// Bind the [UInt8] blob value to the indicated parameter.
 	public func bind(position: Int, _ b: [UInt8]) throws {
-		try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), b, Int32(b.count), unsafeBitCast(COpaquePointer(bitPattern: -1), sqlite_destructor.self)))
+		try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
 	/// Bind a blob of `count` zero values to the indicated parameter.
@@ -308,12 +308,12 @@ public class SQLiteStmt : Closeable {
 
 	/// Bind the String value to the indicated parameter.
 	public func bind(name: String, _ s: String) throws {
-		try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name)), s, Int32(s.utf8.count), unsafeBitCast(COpaquePointer(bitPattern: -1), sqlite_destructor.self)))
+		try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name)), s, Int32(s.utf8.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
 	/// Bind the [Int8] blob value to the indicated parameter.
 	public func bind(name: String, _ b: [Int8]) throws {
-		try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name)), b, Int32(b.count), unsafeBitCast(COpaquePointer(bitPattern: -1), sqlite_destructor.self)))
+		try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name)), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
 	/// Bind a blob of `count` zero values to the indicated parameter.
@@ -350,12 +350,12 @@ public class SQLiteStmt : Closeable {
 
 	/// Returns the name for the indicated column.
 	public func columnName(position: Int) -> String {
-		return String.fromCString(sqlite3_column_name(self.stat!, Int32(position)))!
+		return String(validatingUTF8: sqlite3_column_name(self.stat!, Int32(position)))!
 	}
 
 	/// Returns the name of the declared type for the indicated column.
 	public func columnDeclType(position: Int) -> String {
-		return String.fromCString(sqlite3_column_decltype(self.stat!, Int32(position)))!
+		return String(validatingUTF8: sqlite3_column_decltype(self.stat!, Int32(position)))!
 	}
 
 	/// Returns the blob data for the indicated column.
@@ -370,7 +370,7 @@ public class SQLiteStmt : Closeable {
 		var bytesPtr = UnsafePointer<Int8>(vp)
 		var ret = [Int8]()
 		for _ in 0..<vpLen {
-			ret.append(bytesPtr.memory)
+			ret.append(bytesPtr.pointee)
 			bytesPtr = bytesPtr.successor()
 		}
 		return ret
@@ -400,7 +400,7 @@ public class SQLiteStmt : Closeable {
 	public func columnText(position: Int) -> String {
 		let res = sqlite3_column_text(self.stat!, Int32(position))
 		if res != nil {
-			return String.fromCString(UnsafePointer<CChar>(res))!
+			return String(validatingUTF8: UnsafePointer<CChar>(res))!
 		}
 		return ""
 	}
@@ -416,7 +416,7 @@ public class SQLiteStmt : Closeable {
 
 	func checkRes(res: Int) throws {
 		if res != Int(SQLITE_OK) {
-			throw SQLiteError.Error(code: res, msg: String.fromCString(sqlite3_errmsg(self.db))!)
+			throw SQLiteError.Error(code: res, msg: String(validatingUTF8: sqlite3_errmsg(self.db))!)
 		}
 	}
 
