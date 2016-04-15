@@ -63,20 +63,20 @@
 			name = Source;
 			sourceTree = "<group>";
 		};
-		F80C63AC1CC139F90002F3C9 /* Perfect-SQLite3Tests */ = {
+		F80C63AC1CC139F90002F3C9 /* SQLite3Tests */ = {
 			isa = PBXGroup;
 			children = (
 				F80C63AA1CC1397F0002F3C9 /* SQLite3Tests.swift */,
 				F870D9041CBA04070042F449 /* Info.plist */,
 			);
-			name = "Perfect-SQLite3Tests";
+			name = SQLite3Tests;
 			sourceTree = "<group>";
 		};
 		F870D8D11CB9F4D60042F449 = {
 			isa = PBXGroup;
 			children = (
 				F80C63A71CC135CE0002F3C9 /* Source */,
-				F80C63AC1CC139F90002F3C9 /* Perfect-SQLite3Tests */,
+				F80C63AC1CC139F90002F3C9 /* SQLite3Tests */,
 				F870D8F51CB9F6C70042F449 /* Support */,
 				F870D9081CBA07F90042F449 /* Linked */,
 				F870D8DC1CB9F4D60042F449 /* Products */,
