@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F80C63A81CC1394C0002F3C9 /* SQLite.swift in Sources */ = {isa = PBXBuildFile; fileRef = F80C63A41CC135980002F3C9 /* SQLite.swift */; };
+		F80C63AB1CC1397F0002F3C9 /* SQLite3Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F80C63AA1CC1397F0002F3C9 /* SQLite3Tests.swift */; };
 		F870D8E61CB9F4D60042F449 /* SQLite.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F870D8DB1CB9F4D60042F449 /* SQLite.framework */; };
 		F870D8FF1CBA03C90042F449 /* Perfect-SQLite.h in Headers */ = {isa = PBXBuildFile; fileRef = F870D8FD1CBA03C90042F449 /* Perfect-SQLite.h */; };
-		F870D9011CBA03D90042F449 /* SQLite3Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F870D9001CBA03D90042F449 /* SQLite3Tests.swift */; };
-		F870D9031CBA03E30042F449 /* SQLite.swift in Sources */ = {isa = PBXBuildFile; fileRef = F870D9021CBA03E30042F449 /* SQLite.swift */; };
 		F870D9071CBA07F20042F449 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = F870D9061CBA07F20042F449 /* libsqlite3.tbd */; };
 /* End PBXBuildFile section */
 
@@ -25,12 +25,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F80C63A41CC135980002F3C9 /* SQLite.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SQLite.swift; path = ../../Sources/SQLite/SQLite.swift; sourceTree = "<group>"; };
+		F80C63AA1CC1397F0002F3C9 /* SQLite3Tests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SQLite3Tests.swift; path = ../../Sources/SQLite3Tests/SQLite3Tests.swift; sourceTree = "<group>"; };
 		F870D8DB1CB9F4D60042F449 /* SQLite.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SQLite.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F870D8E51CB9F4D60042F449 /* Perfect-SQLiteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Perfect-SQLiteTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F870D8FC1CBA03C90042F449 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F870D8FD1CBA03C90042F449 /* Perfect-SQLite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "Perfect-SQLite.h"; sourceTree = "<group>"; };
-		F870D9001CBA03D90042F449 /* SQLite3Tests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SQLite3Tests.swift; path = "../../../Perfect-SQLite/Sources/SQLite3Tests/SQLite3Tests.swift"; sourceTree = "<group>"; };
-		F870D9021CBA03E30042F449 /* SQLite.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SQLite.swift; path = "../../../Perfect-SQLite/Sources/SQLite/SQLite.swift"; sourceTree = "<group>"; };
 		F870D9041CBA04070042F449 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = "Perfect-SQLiteTests/Info.plist"; sourceTree = SOURCE_ROOT; };
 		F870D9061CBA07F20042F449 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -55,11 +55,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		F80C63A71CC135CE0002F3C9 /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				F80C63A41CC135980002F3C9 /* SQLite.swift */,
+			);
+			name = Source;
+			sourceTree = "<group>";
+		};
+		F80C63AC1CC139F90002F3C9 /* Perfect-SQLite3Tests */ = {
+			isa = PBXGroup;
+			children = (
+				F80C63AA1CC1397F0002F3C9 /* SQLite3Tests.swift */,
+				F870D9041CBA04070042F449 /* Info.plist */,
+			);
+			name = "Perfect-SQLite3Tests";
+			sourceTree = "<group>";
+		};
 		F870D8D11CB9F4D60042F449 = {
 			isa = PBXGroup;
 			children = (
-				F870D8DD1CB9F4D60042F449 /* Source */,
-				F870D8E91CB9F4D60042F449 /* Perfect-SQLite3Tests */,
+				F80C63A71CC135CE0002F3C9 /* Source */,
+				F80C63AC1CC139F90002F3C9 /* Perfect-SQLite3Tests */,
 				F870D8F51CB9F6C70042F449 /* Support */,
 				F870D9081CBA07F90042F449 /* Linked */,
 				F870D8DC1CB9F4D60042F449 /* Products */,
@@ -73,24 +90,6 @@
 				F870D8E51CB9F4D60042F449 /* Perfect-SQLiteTests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		F870D8DD1CB9F4D60042F449 /* Source */ = {
-			isa = PBXGroup;
-			children = (
-				F870D9021CBA03E30042F449 /* SQLite.swift */,
-			);
-			name = Source;
-			path = "Perfect-SQLite3";
-			sourceTree = "<group>";
-		};
-		F870D8E91CB9F4D60042F449 /* Perfect-SQLite3Tests */ = {
-			isa = PBXGroup;
-			children = (
-				F870D9001CBA03D90042F449 /* SQLite3Tests.swift */,
-				F870D9041CBA04070042F449 /* Info.plist */,
-			);
-			path = "Perfect-SQLite3Tests";
 			sourceTree = "<group>";
 		};
 		F870D8F51CB9F6C70042F449 /* Support */ = {
@@ -218,7 +217,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F870D9031CBA03E30042F449 /* SQLite.swift in Sources */,
+				F80C63A81CC1394C0002F3C9 /* SQLite.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -226,7 +225,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F870D9011CBA03D90042F449 /* SQLite3Tests.swift in Sources */,
+				F80C63AB1CC1397F0002F3C9 /* SQLite3Tests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -345,7 +344,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "ca.perfectlysoft.Perfect-SQLite";
 				PRODUCT_NAME = SQLite;
 				SKIP_INSTALL = YES;
-				SWIFT_INCLUDE_PATHS = "${SRCROOT}/../../Perfect-SQLite/Sources/SQLite3/include";
+				SWIFT_INCLUDE_PATHS = "${SRCROOT}/../../Sources/SQLite3/include";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -366,7 +365,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "ca.perfectlysoft.Perfect-SQLite";
 				PRODUCT_NAME = SQLite;
 				SKIP_INSTALL = YES;
-				SWIFT_INCLUDE_PATHS = "${SRCROOT}/../../Perfect-SQLite/Sources/SQLite3/include";
+				SWIFT_INCLUDE_PATHS = "${SRCROOT}/../../Sources/SQLite3/include";
 			};
 			name = Release;
 		};
