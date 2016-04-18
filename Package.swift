@@ -23,9 +23,8 @@ let package = Package(
 	name: "SQLite",
 	targets: [
 		Target(name: "SQLite", dependencies: [.Target(name: "SQLite3")]),
-	    Target(name: "SQLite3")
+		Target(name: "SQLite3"),
+		Target(name: "SQLite3Tests", dependencies: [.Target(name: "SQLite")]),
 	],
-	dependencies: [
-		
-	]
+	dependencies: []
 )
