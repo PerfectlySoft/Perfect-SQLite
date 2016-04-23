@@ -21,6 +21,32 @@ import SQLite3
 #if os(Linux)
 import SwiftGlibc
 #endif
+
+#if swift(>=3.0)
+	
+#else
+	typealias ErrorProtocol = ErrorType
+	typealias OpaquePointer = COpaquePointer
+	extension String {
+		init?(validatingUTF8: UnsafePointer<Int8>) {
+			if let s = String.fromCString(validatingUTF8) {
+				self.init(s)
+			} else {
+				return nil
+			}
+		}
+	}
+	@warn_unused_result
+	func unsafeBitCast<T, U>(x: T, to: U.Type) -> U {
+		return unsafeBitCast(x, to)
+	}
+	extension UnsafePointer {
+		var pointee: Memory {
+			get { return self.memory }
+		}
+	}
+#endif
+
 /// This enum type indicates an exception when dealing with a SQLite database
 public enum SQLiteError : ErrorProtocol {
 	/// A SQLite error code and message.
