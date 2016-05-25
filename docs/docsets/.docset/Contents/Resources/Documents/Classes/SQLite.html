@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SQLite Class Reference</title>
+    <link rel="stylesheet" type="text/css" href="../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../css/highlight.css" />
+    <meta charset='utf-8'>
+    <script src="../js/jquery.min.js" defer></script>
+    <script src="../js/jazzy.js" defer></script>
+    
+  </head>
+  <body>
+    <a name="//apple_ref/swift/Class/SQLite" class="dashAnchor"></a>
+    <a title="SQLite Class Reference"></a>
+    <header>
+      <div class="content-wrapper">
+        <p><a href="../index.html"> Docs</a> (100% documented)</p>
+      </div>
+    </header>
+    <div class="content-wrapper">
+      <p id="breadcrumbs">
+        <a href="../index.html"> Reference</a>
+        <img id="carat" src="../img/carat.png" />
+        SQLite Class Reference
+      </p>
+    </div>
+    <div class="content-wrapper">
+      <nav class="sidebar">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a href="../Classes.html">Classes</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Classes/SQLite.html">SQLite</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/SQLiteStmt.html">SQLiteStmt</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a href="../Enums.html">Enums</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a href="../Enums/SQLiteError.html">SQLiteError</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+        <section>
+          <section class="section">
+            <h1>SQLite</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="kt">SQLite</span></code></pre>
+
+                </div>
+              </div>
+            <p>A SQLite database</p>
+
+          </section>
+          <section class="section task-group-section">
+            <div class="task-group">
+              <ul>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLitecFzTSS8readOnlySb_S0_"></a>
+                    <a name="//apple_ref/swift/Method/init(_:readOnly:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLitecFzTSS8readOnlySb_S0_">init(_:readOnly:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Create or open a SQLite database given a file path.</p>
+
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    SQLiteError
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="nf">init</span><span class="p">(</span><span class="n">_</span> <span class="nv">path</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">readOnly</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>path</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>String path to SQLite database</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>readOnly</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Optional, Bool flag for read/write setting, defaults to false</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite5closeFT_T_"></a>
+                    <a name="//apple_ref/swift/Method/close()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite5closeFT_T_">close()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Close the SQLite database.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">close</span><span class="p">()</span></code></pre>
+
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite7prepareFzT9statementSS_CS_10SQLiteStmt"></a>
+                    <a name="//apple_ref/swift/Method/prepare(statement:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite7prepareFzT9statementSS_CS_10SQLiteStmt">prepare(statement:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Compile the SQL statement.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">prepare</span><span class="p">(</span><span class="n">statement</span> <span class="nv">stat</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">SQLiteStmt</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>A SQLiteStmt object representing the compiled statement.</p>
+
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite15lastInsertRowIDFT_Si"></a>
+                    <a name="//apple_ref/swift/Method/lastInsertRowID()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite15lastInsertRowIDFT_Si">lastInsertRowID()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Returns the value of <code>sqlite3_last_insert_rowid</code>.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">lastInsertRowID</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">Int</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>Int last inserted row ID</p>
+
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite12totalChangesFT_Si"></a>
+                    <a name="//apple_ref/swift/Method/totalChanges()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite12totalChangesFT_Si">totalChanges()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Returns the value of <code>sqlite3_total_changes</code>.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">totalChanges</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">Int</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>Int total changes</p>
+
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite7changesFT_Si"></a>
+                    <a name="//apple_ref/swift/Method/changes()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite7changesFT_Si">changes()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Returns the value of <code>sqlite3_changes</code>.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">changes</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">Int</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>Int number of changes</p>
+
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite7errCodeFT_Si"></a>
+                    <a name="//apple_ref/swift/Method/errCode()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite7errCodeFT_Si">errCode()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Returns the value of <code>sqlite3_errcode</code>.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">errCode</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">Int</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>Int error code</p>
+
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite6errMsgFT_SS"></a>
+                    <a name="//apple_ref/swift/Method/errMsg()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite6errMsgFT_SS">errMsg()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Returns the value of <code>sqlite3_errmsg</code>.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">errMsg</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">String</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>String error message</p>
+
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite7executeFzT9statementSS_T_"></a>
+                    <a name="//apple_ref/swift/Method/execute(statement:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite7executeFzT9statementSS_T_">execute(statement:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Execute the given statement. Assumes there will be no parameter binding or resulting row data.</p>
+
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    ()
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">execute</span><span class="p">(</span><span class="n">statement</span> <span class="nv">statement</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>statement</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>String statement to be executed</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite7executeFzT9statementSS10doBindingsFzCS_10SQLiteStmtT__T_"></a>
+                    <a name="//apple_ref/swift/Method/execute(statement:doBindings:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite7executeFzT9statementSS10doBindingsFzCS_10SQLiteStmtT__T_">execute(statement:doBindings:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Execute the given statement. Calls the provided callback one time for parameter binding. Assumes there will be no resulting row data.</p>
+
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    ()
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">execute</span><span class="p">(</span><span class="n">statement</span> <span class="nv">statement</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">doBindings</span><span class="p">:</span> <span class="p">(</span><span class="kt">SQLiteStmt</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="p">())</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>statement</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>String statement to be executed</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>doBindings</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Block used for bindings</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite7executeFzT9statementSS5countSi10doBindingsFzTCS_10SQLiteStmtSi_T__T_"></a>
+                    <a name="//apple_ref/swift/Method/execute(statement:count:doBindings:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite7executeFzT9statementSS5countSi10doBindingsFzTCS_10SQLiteStmtSi_T__T_">execute(statement:count:doBindings:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Execute the given statement <code>count</code> times. Calls the provided callback on each execution for parameter binding. Assumes there will be no resulting row data.</p>
+
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    ()
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">execute</span><span class="p">(</span><span class="n">statement</span> <span class="nv">statement</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">count</span><span class="p">:</span> <span class="kt">Int</span><span class="p">,</span> <span class="nv">doBindings</span><span class="p">:</span> <span class="p">(</span><span class="kt">SQLiteStmt</span><span class="p">,</span> <span class="kt">Int</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="p">())</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>statement</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>String statement to be executed</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>count</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Int number of times to execute</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>doBindings</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Block to be executed for binding on each call</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite17doWithTransactionFzFzT_T_T_"></a>
+                    <a name="//apple_ref/swift/Method/doWithTransaction(_:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite17doWithTransactionFzFzT_T_T_">doWithTransaction(_:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Executes a BEGIN, calls the provided closure and executes a ROLLBACK if an exception occurs or a COMMIT if no exception occurs.</p>
+
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    ErrorType
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">doWithTransaction</span><span class="p">(</span><span class="nv">closure</span><span class="p">:</span> <span class="p">()</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="p">())</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>closure</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Block to be executed inside transaction</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite10forEachRowFzT9statementSS9handleRowFTCS_10SQLiteStmtSi_T__T_"></a>
+                    <a name="//apple_ref/swift/Method/forEachRow(statement:handleRow:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite10forEachRowFzT9statementSS9handleRowFTCS_10SQLiteStmtSi_T__T_">forEachRow(statement:handleRow:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Executes the statement and calls the closure for each resulting row.</p>
+
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    ()
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">forEachRow</span><span class="p">(</span><span class="n">statement</span> <span class="nv">statement</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">handleRow</span><span class="p">:</span> <span class="p">(</span><span class="kt">SQLiteStmt</span><span class="p">,</span> <span class="kt">Int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">())</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>statement</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>String statement to be executed</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>handleRow</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Block to be executed for each row</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:FC6SQLite6SQLite10forEachRowFzT9statementSS10doBindingsFzCS_10SQLiteStmtT_9handleRowFTS1_Si_T__T_"></a>
+                    <a name="//apple_ref/swift/Method/forEachRow(statement:doBindings:handleRow:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:FC6SQLite6SQLite10forEachRowFzT9statementSS10doBindingsFzCS_10SQLiteStmtT_9handleRowFTS1_Si_T__T_">forEachRow(statement:doBindings:handleRow:)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Executes the statement, calling <code>doBindings</code> to handle parameter bindings and calling <code>handleRow</code> for each resulting row.</p>
+
+<div class="aside aside-throws">
+    <p class="aside-title">Throws</p>
+    ()
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">forEachRow</span><span class="p">(</span><span class="n">statement</span> <span class="nv">statement</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">doBindings</span><span class="p">:</span> <span class="p">(</span><span class="kt">SQLiteStmt</span><span class="p">)</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="p">(),</span> <span class="nv">handleRow</span><span class="p">:</span> <span class="p">(</span><span class="kt">SQLiteStmt</span><span class="p">,</span> <span class="kt">Int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">())</span> <span class="k">throws</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>statement</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>String statement to be executed</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>doBindings</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Block to perform bindings on statement</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>handleRow</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Block to execute for each row</p>
+
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </section>
+        <section id="footer">
+          <p>&copy; 2016 <a class="link" href="" target="_blank" rel="external"></a>. All rights reserved. (Last updated: 2016-05-25)</p>
+          <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.6.2</a>, a <a class="link" href="http://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+        </section>
+      </article>
+    </div>
+  </body>
+</div>
+</html>
