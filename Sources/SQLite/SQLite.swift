@@ -143,7 +143,7 @@ public class SQLite {
     ///
     /// - parameter statement: String statement to be executed
     /// - throws: ()
-	public func execute(statement statement: String) throws {
+	public func execute(statement: String) throws {
 		try forEachRow(statement: statement, doBindings: { (SQLiteStmt) throws -> () in () }) {
 			(SQLiteStmt) -> () in
 			// nothing
@@ -155,7 +155,7 @@ public class SQLite {
     /// - parameter statement: String statement to be executed
     /// - parameter doBindings: Block used for bindings
     /// - throws: ()
-	public func execute(statement statement: String, doBindings: (SQLiteStmt) throws -> ()) throws {
+	public func execute(statement: String, doBindings: (SQLiteStmt) throws -> ()) throws {
 		try forEachRow(statement: statement, doBindings: doBindings) {
 			(SQLiteStmt) -> () in
 			// nothing
@@ -168,7 +168,7 @@ public class SQLite {
     /// - parameter count: Int number of times to execute
     /// - parameter doBindings: Block to be executed for binding on each call
     /// - throws: ()
-	public func execute(statement statement: String, count: Int, doBindings: (SQLiteStmt, Int) throws -> ()) throws {
+	public func execute(statement: String, count: Int, doBindings: (SQLiteStmt, Int) throws -> ()) throws {
 		let stat = try prepare(statement: statement)
 		defer { stat.finalize() }
 
@@ -178,7 +178,7 @@ public class SQLite {
 				(SQLiteStmt) -> () in
 				// nothing
 			}
-			try stat.reset()
+			let _ = try stat.reset()
 		}
 	}
 
@@ -202,7 +202,7 @@ public class SQLite {
     /// - parameter statement: String statement to be executed
     /// - parameter handleRow: Block to be executed for each row
     /// - throws: ()
-	public func forEachRow(statement statement: String, handleRow: (SQLiteStmt, Int) -> ()) throws {
+	public func forEachRow(statement: String, handleRow: (SQLiteStmt, Int) -> ()) throws {
 		let stat = try prepare(statement: statement)
 		defer { stat.finalize() }
 
@@ -215,7 +215,7 @@ public class SQLite {
     /// - parameter doBindings: Block to perform bindings on statement
     /// - parameter handleRow:  Block to execute for each row
     /// - throws: ()
-	public func forEachRow(statement statement: String, doBindings: (SQLiteStmt) throws -> (), handleRow: (SQLiteStmt, Int) -> ()) throws {
+	public func forEachRow(statement: String, doBindings: (SQLiteStmt) throws -> (), handleRow: (SQLiteStmt, Int) -> ()) throws {
 		let stat = try prepare(statement: statement)
 		defer { stat.finalize() }
 
@@ -224,18 +224,18 @@ public class SQLite {
 		try forEachRowBody(stat: stat, handleRow: handleRow)
 	}
 
-	func forEachRowBody(stat stat: SQLiteStmt, handleRow: (SQLiteStmt, Int) -> ()) throws {
+	func forEachRowBody(stat: SQLiteStmt, handleRow: (SQLiteStmt, Int) -> ()) throws {
 		var r = stat.step()
 		if r == SQLITE_LOCKED || r == SQLITE_BUSY {
 			miniSleep(millis: 1)
 			if r == SQLITE_LOCKED {
-				try stat.reset()
+				let _ = try stat.reset()
 			}
 			r = stat.step()
 			var times = 1000000
 			while (r == SQLITE_LOCKED || r == SQLITE_BUSY) && times > 0 {
 				if r == SQLITE_LOCKED {
-					try stat.reset()
+					let _ = try stat.reset()
 				}
 				r = stat.step()
 				times -= 1
@@ -253,7 +253,7 @@ public class SQLite {
 		}
 	}
 
-	func miniSleep(millis millis: Int) {
+	func miniSleep(millis: Int) {
 		var tv = timeval()
 		tv.tv_sec = millis / 1000
 	#if os(Linux)
@@ -317,7 +317,7 @@ public class SQLiteStmt {
     /// - parameter position: Int position of binding
     /// - parameter d: Double to be bound
     /// - throws: ()
-	public func bind(position position: Int, _ d: Double) throws {
+	public func bind(position: Int, _ d: Double) throws {
 		try checkRes(sqlite3_bind_double(self.stat!, Int32(position), d))
 	}
 
@@ -326,7 +326,7 @@ public class SQLiteStmt {
     /// - parameter position: Int position of binding
     /// - parameter i: Int32 to be bound
     /// - throws: ()
-	public func bind(position position: Int, _ i: Int32) throws {
+	public func bind(position: Int, _ i: Int32) throws {
 		try checkRes(sqlite3_bind_int(self.stat!, Int32(position), Int32(i)))
 	}
 
@@ -335,7 +335,7 @@ public class SQLiteStmt {
     /// - parameter position: Int position of binding
     /// - parameter i: Int to be bound
     /// - throws: ()
-	public func bind(position position: Int, _ i: Int) throws {
+	public func bind(position: Int, _ i: Int) throws {
 		try checkRes(sqlite3_bind_int64(self.stat!, Int32(position), Int64(i)))
 	}
 
@@ -344,7 +344,7 @@ public class SQLiteStmt {
     /// - parameter position: Int position of binding
     /// - parameter i: Int64 to be bound
     /// - throws: ()
-	public func bind(position position: Int, _ i: Int64) throws {
+	public func bind(position: Int, _ i: Int64) throws {
 		try checkRes(sqlite3_bind_int64(self.stat!, Int32(position), i))
 	}
 
@@ -353,7 +353,7 @@ public class SQLiteStmt {
     /// - parameter position: Int position of binding
     /// - parameter s: String to be bound
     /// - throws: ()
-	public func bind(position position: Int, _ s: String) throws {
+	public func bind(position: Int, _ s: String) throws {
 		try checkRes(sqlite3_bind_text(self.stat!, Int32(position), s, Int32(s.utf8.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
@@ -362,7 +362,7 @@ public class SQLiteStmt {
     /// - parameter position: Int position of binding
     /// - parameter b: [Int8] blob to be bound
     /// - throws: ()
-	public func bind(position position: Int, _ b: [Int8]) throws {
+	public func bind(position: Int, _ b: [Int8]) throws {
 		try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
@@ -371,7 +371,7 @@ public class SQLiteStmt {
     /// - parameter position: Int position of binding
     /// - parameter b: [UInt8] blob to be bound
     /// - throws: ()
-	public func bind(position position: Int, _ b: [UInt8]) throws {
+	public func bind(position: Int, _ b: [UInt8]) throws {
 		try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
@@ -380,7 +380,7 @@ public class SQLiteStmt {
     /// - parameter position: Int position of binding
     /// - parameter count: Int number of zero values in blob to be bound
     /// - throws: ()
-	public func bindZeroBlob(position position: Int, count: Int) throws {
+	public func bindZeroBlob(position: Int, count: Int) throws {
 		try checkRes(sqlite3_bind_zeroblob(self.stat!, Int32(position), Int32(count)))
 	}
 
@@ -388,7 +388,7 @@ public class SQLiteStmt {
     ///
     /// - parameter position: Int position of binding
     /// - throws: ()
-	public func bindNull(position position: Int) throws {
+	public func bindNull(position: Int) throws {
 		try checkRes(sqlite3_bind_null(self.stat!, Int32(position)))
 	}
 
@@ -397,7 +397,7 @@ public class SQLiteStmt {
     /// - parameter name: String name of binding
     /// - parameter d: Double to be bound
     /// - throws: ()
-	public func bind(name name: String, _ d: Double) throws {
+	public func bind(name: String, _ d: Double) throws {
 		try checkRes(sqlite3_bind_double(self.stat!, Int32(bindParameterIndex(name: name)), d))
 	}
 
@@ -406,7 +406,7 @@ public class SQLiteStmt {
     /// - parameter name: String name of binding
     /// - parameter i: Int32 to be bound
     /// - throws: ()
-	public func bind(name name: String, _ i: Int32) throws {
+	public func bind(name: String, _ i: Int32) throws {
 		try checkRes(sqlite3_bind_int(self.stat!, Int32(bindParameterIndex(name: name)), Int32(i)))
 	}
 
@@ -415,7 +415,7 @@ public class SQLiteStmt {
     /// - parameter name: String name of binding
     /// - parameter i: Int to be bound
     /// - throws: ()
-	public func bind(name name: String, _ i: Int) throws {
+	public func bind(name: String, _ i: Int) throws {
 		try checkRes(sqlite3_bind_int64(self.stat!, Int32(bindParameterIndex(name: name)), Int64(i)))
 	}
 
@@ -424,7 +424,7 @@ public class SQLiteStmt {
     /// - parameter name: String name of binding
     /// - parameter i: Int64 to be bound
     /// - throws: ()
-	public func bind(name name: String, _ i: Int64) throws {
+	public func bind(name: String, _ i: Int64) throws {
 		try checkRes(sqlite3_bind_int64(self.stat!, Int32(bindParameterIndex(name: name)), i))
 	}
 
@@ -433,7 +433,7 @@ public class SQLiteStmt {
     /// - parameter name: String name of binding
     /// - parameter s: String to be bound
     /// - throws: ()
-	public func bind(name name: String, _ s: String) throws {
+	public func bind(name: String, _ s: String) throws {
 		try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name: name)), s, Int32(s.utf8.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
@@ -442,7 +442,7 @@ public class SQLiteStmt {
     /// - parameter name: String name of binding
     /// - parameter b: [Int8] blob to be bound
     /// - throws: ()
-	public func bind(name name: String, _ b: [Int8]) throws {
+	public func bind(name: String, _ b: [Int8]) throws {
 		try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name: name)), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
@@ -459,7 +459,7 @@ public class SQLiteStmt {
     ///
     /// - parameter name: String name of binding
     /// - throws: ()
-	public func bindNull(name name: String) throws {
+	public func bindNull(name: String) throws {
 		try checkRes(sqlite3_bind_null(self.stat!, Int32(bindParameterIndex(name: name))))
 	}
 
@@ -468,7 +468,7 @@ public class SQLiteStmt {
     /// - parameter name: String name of binding
     /// - throws: ()
     /// - returns: Int index of parameter
-	public func bindParameterIndex(name name: String) throws -> Int {
+	public func bindParameterIndex(name: String) throws -> Int {
 		let idx = sqlite3_bind_parameter_index(self.stat!, name)
 		guard idx != 0 else {
 			throw SQLiteError.Error(code: Int(SQLITE_MISUSE), msg: "The indicated bind parameter name was not found.")
@@ -497,7 +497,7 @@ public class SQLiteStmt {
     ///
     /// - parameter position: Int position of column
     /// - returns: String name of column
-	public func columnName(position position: Int) -> String {
+	public func columnName(position: Int) -> String {
 		return String(validatingUTF8: sqlite3_column_name(self.stat!, Int32(position)))!
 	}
 
@@ -505,7 +505,7 @@ public class SQLiteStmt {
     ///
     /// - parameter position: Int position of column
     /// - returns: String name of declared type
-	public func columnDeclType(position position: Int) -> String {
+	public func columnDeclType(position: Int) -> String {
 		return String(validatingUTF8: sqlite3_column_decltype(self.stat!, Int32(position)))!
 	}
 
@@ -513,7 +513,7 @@ public class SQLiteStmt {
     ///
     /// - parameter position: Int position of column
     /// - returns: [Int8] blob
-	public func columnBlob(position position: Int) -> [Int8] {
+	public func columnBlob(position: Int) -> [Int8] {
 		let vp = sqlite3_column_blob(self.stat!, Int32(position))
 		let vpLen = sqlite3_column_bytes(self.stat!, Int32(position))
 
@@ -545,7 +545,7 @@ public class SQLiteStmt {
     ///
     /// - parameter: Int position of column
     /// - returns: Double value for column
-	public func columnDouble(position position: Int) -> Double {
+	public func columnDouble(position: Int) -> Double {
 		return Double(sqlite3_column_double(self.stat!, Int32(position)))
 	}
 
@@ -553,7 +553,7 @@ public class SQLiteStmt {
     ///
     /// - parameter: Int position of column
     /// - returns: Int value for column
-	public func columnInt(position position: Int) -> Int {
+	public func columnInt(position: Int) -> Int {
 		return Int(sqlite3_column_int64(self.stat!, Int32(position)))
 	}
 
@@ -561,7 +561,7 @@ public class SQLiteStmt {
     ///
     /// - parameter: Int position of column
     /// - returns: Int32 value for column
-	public func columnInt32(position position: Int) -> Int32 {
+	public func columnInt32(position: Int) -> Int32 {
 		return sqlite3_column_int(self.stat!, Int32(position))
 	}
 
@@ -569,7 +569,7 @@ public class SQLiteStmt {
     ///
     /// - parameter: Int position of column
     /// - returns: Int64 value for column
-	public func columnInt64(position position: Int) -> Int64 {
+	public func columnInt64(position: Int) -> Int64 {
 		return sqlite3_column_int64(self.stat!, Int32(position))
 	}
 
@@ -577,7 +577,7 @@ public class SQLiteStmt {
     ///
     /// - parameter: Int position of column
     /// - returns: String value for column
-	public func columnText(position position: Int) -> String {
+	public func columnText(position: Int) -> String {
 	#if swift(>=3.0)
 		if let res = sqlite3_column_text(self.stat!, Int32(position)) {
 			return String(validatingUTF8: UnsafePointer<CChar>(res)) ?? ""

@@ -1,4 +1,0 @@
-module SQLite3 {
-    header "p_sqlite3.h"
-    export *
-}

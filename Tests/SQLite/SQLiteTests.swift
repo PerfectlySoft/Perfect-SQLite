@@ -1,23 +1,28 @@
 //
-//  Perfect_SQLite3Tests.swift
-//  Perfect-SQLite3Tests
+//  SQLiteTests.swift
+//  Perfect-SQLite
 //
 //  Created by Kyle Jessup on 2016-04-09.
 //  Copyright © 2016 PerfectlySoft. All rights reserved.
 //
 
 import XCTest
-import Darwin
+#if os(Linux)
+    import SwiftGlibc
+#else
+    import Darwin
+#endif
+
 @testable import SQLite
 
 let testDb = "/tmp/sqlitetest.db"
 
-class Perfect_SQLite3Tests: XCTestCase {
+class SQLiteTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
         // Put setup code here. This method is called before the invocation of each test method in the class.
-		Darwin.unlink(testDb)
+		unlink(testDb)
     }
     
     override func tearDown() {
