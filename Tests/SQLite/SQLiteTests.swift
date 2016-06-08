@@ -76,3 +76,11 @@ class SQLiteTests: XCTestCase {
 		}
 	}
 }
+
+extension SQLiteTests {
+    static var allTests : [(String, (SQLiteTests) -> () throws -> ())] {
+        return [
+            ("testSQLite", testSQLite)
+        ]
+    }
+}
