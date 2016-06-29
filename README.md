@@ -21,7 +21,7 @@ sudo apt-get install sqlite3
 Add this project as a dependency in your Package.swift file.
 
 ```
-.Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", majorVersion: 0, minor: 2)
+.Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", versions: Version(0,0,0)..<Version(10,0,0))
 ```
 
 ## Repository Layout
