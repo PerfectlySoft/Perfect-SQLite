@@ -25,7 +25,7 @@ import SwiftGlibc
 #if swift(>=3.0)
 	
 #else
-	typealias ErrorProtocol = ErrorType
+	typealias Error = ErrorType
 	typealias OpaquePointer = COpaquePointer
 	extension String {
 		init?(validatingUTF8: UnsafePointer<Int8>) {
