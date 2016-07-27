@@ -48,7 +48,7 @@ import SwiftGlibc
 #endif
 
 /// This enum type indicates an exception when dealing with a SQLite database
-public enum SQLiteError : ErrorProtocol {
+public enum SQLiteError : Error {
 	/// A SQLite error code and message.
 	case Error(code: Int, msg: String)
 }
