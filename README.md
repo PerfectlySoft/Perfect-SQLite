@@ -8,6 +8,8 @@ This package builds with Swift Package Manager and is part of the [Perfect](http
 
 Ensure you have installed and activated the latest Swift 3.0 tool chain.
 
+To learn more, you can read the full documentation guide [here](https://github.com/PerfectlySoft/PerfectDocs/blob/master/guide/SQLite.md) or jump to the example [here](#Usage-Example)
+
 ## Linux Build Notes
 
 Ensure that you have installed sqlite3.
@@ -22,6 +24,84 @@ Add this project as a dependency in your Package.swift file.
 
 ```
 .Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", versions: Version(0,0,0)..<Version(10,0,0))
+```
+
+## Usage Example
+
+Let’s assume you’d like to host a blog in Swift. First we need tables. Assuming you’ve created an SQLite file `./db/database`, we simply need to connect and add the tables. 
+
+```swift
+let dbPath = "./db/database"
+
+do {
+			let sqlite = try SQLite(dbPath)
+			defer {  
+				sqlite.close()
+			}
+			
+			try sqlite.execute(statement: "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY NOT NULL, post_title TEXT NOT NULL, post_content TEXT NOT NULL, featured_image_uri TEXT NOT NULL)")
+		} catch {
+			print("Failure creating database tables") //Handle Errors
+		}
+```
+
+Next, we would need to add some content. 
+
+```swift
+let dbPath = "./db/database"
+let postTitle = "Test Title"
+let postContent = "Lorem ipsum dolor sit amet…"
+
+do {
+   let sqlite = try SQLite(dbPath)
+   defer {
+     sqlite.close()
+   }
+
+   try sqlite.execute(statement: "INSERT INTO posts (post_title, post_content) VALUES (:1,:2)") {
+     (stmt:SQLiteStmt) -> () in
+
+     try stmt.bind(position: 1, postTitle)
+     try stmt.bind(position: 2, postContent)
+   }
+ } catch {
+		//Handle Errors
+ }
+```
+
+Finally, we retrieve posts and post titles from an SQLite database full of blog content. Each id, post, and title is appended to a dictionary for use elsewhere. 
+
+``` swift
+let dbPath = "./db/database"
+Var contentDict = [String: Any]()
+
+do {
+	let sqlite = try SQLite(dbPath)
+		defer {
+			sqlite.close() // This makes sure we close our connection.
+		}
+	
+	let demoStatement = "SELECT post_title, post_content FROM posts ORDER BY id DESC LIMIT :1"
+	
+	try sqlite.forEachRow(statement: demoStatement, doBindings {
+		
+		(statement: SQLiteStmt) -> () in
+		
+		let bindValue = 5
+		try statement.bind(position: 1, bindValue)
+		
+	}) {(statement: SQLiteStmt, i:Int) -> () in
+
+        self.contentDict.append([
+                "id": statement.columnText(position: 0),
+                "second_field": statement.columnText(position: 1),
+                "third_field": statement.columnText(position: 2)
+            ])
+  }
+	
+} catch {
+	//Handle Errors
+}
 ```
 
 ## Repository Layout
