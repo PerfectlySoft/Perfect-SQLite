@@ -22,31 +22,6 @@ import SQLite3
 import SwiftGlibc
 #endif
 
-#if swift(>=3.0)
-	
-#else
-	typealias ErrorProtocol = ErrorType
-	typealias OpaquePointer = COpaquePointer
-	extension String {
-		init?(validatingUTF8: UnsafePointer<Int8>) {
-			if let s = String.fromCString(validatingUTF8) {
-				self.init(s)
-			} else {
-				return nil
-			}
-		}
-	}
-	@warn_unused_result
-	func unsafeBitCast<T, U>(x: T, to: U.Type) -> U {
-		return unsafeBitCast(x, to)
-	}
-	extension UnsafePointer {
-		var pointee: Memory {
-			get { return self.memory }
-		}
-	}
-#endif
-
 /// This enum type indicates an exception when dealing with a SQLite database
 public enum SQLiteError : Error {
 	/// A SQLite error code and message.
@@ -90,11 +65,7 @@ public class SQLite {
     /// - returns: A SQLiteStmt object representing the compiled statement.
 	public func prepare(statement stat: String) throws -> SQLiteStmt {
 		var statPtr = OpaquePointer(bitPattern: 0)
-	#if swift(>=3.0)
-		let tail = UnsafeMutablePointer<UnsafePointer<Int8>?>(nil)
-	#else
-		let tail = UnsafeMutablePointer<UnsafePointer<Int8>>(nil)
-	#endif
+		let tail = UnsafeMutablePointer<UnsafePointer<Int8>?>(nil as OpaquePointer?)
 		let res = sqlite3_prepare_v2(self.sqlite3, stat, Int32(stat.utf8.count), &statPtr, tail)
 		try checkRes(res)
 		return SQLiteStmt(db: self.sqlite3, stat: statPtr)
@@ -280,11 +251,8 @@ public class SQLiteStmt {
 
 	let db: OpaquePointer?
 	var stat: OpaquePointer?
-#if swift(>=3.0)
-	typealias sqlite_destructor = @convention(c) (UnsafeMutablePointer<Void>?) -> Void
-#else
-	typealias sqlite_destructor = @convention(c) (UnsafeMutablePointer<Void>) -> Void
-#endif
+
+	typealias sqlite_destructor = @convention(c) (UnsafeMutableRawPointer?) -> Void
 
 	init(db: OpaquePointer?, stat: OpaquePointer?) {
 		self.db = db
@@ -515,29 +483,19 @@ public class SQLiteStmt {
     /// - returns: [Int8] blob
 	public func columnBlob(position: Int) -> [Int8] {
 		let vp = sqlite3_column_blob(self.stat!, Int32(position))
-		let vpLen = sqlite3_column_bytes(self.stat!, Int32(position))
+		let vpLen = Int(sqlite3_column_bytes(self.stat!, Int32(position)))
 
 		guard vpLen > 0 else {
 			return [Int8]()
 		}
 		
 		var ret = [Int8]()
-	#if swift(>=3.0)
-		if var bytesPtr = UnsafePointer<Int8>(vp) {
+		if var bytesPtr = vp?.bindMemory(to: Int8.self, capacity: vpLen) {
 			for _ in 0..<vpLen {
 				ret.append(bytesPtr.pointee)
 				bytesPtr = bytesPtr.successor()
 			}
 		}
-	#else
-		var bytesPtr = UnsafePointer<Int8>(vp)
-		if nil != vp {
-			for _ in 0..<vpLen {
-				ret.append(bytesPtr.pointee)
-				bytesPtr = bytesPtr.successor()
-			}
-		}
-	#endif
 		return ret
 	}
 
@@ -578,16 +536,11 @@ public class SQLiteStmt {
     /// - parameter: Int position of column
     /// - returns: String value for column
 	public func columnText(position: Int) -> String {
-	#if swift(>=3.0)
 		if let res = sqlite3_column_text(self.stat!, Int32(position)) {
-			return String(validatingUTF8: UnsafePointer<CChar>(res)) ?? ""
+			return res.withMemoryRebound(to: Int8.self, capacity: 0) {
+				String(validatingUTF8: $0) ?? ""
+			}
 		}
-	#else
-		let res = sqlite3_column_text(self.stat!, Int32(position))
-		if nil != res {
-			return String(validatingUTF8: UnsafePointer<CChar>(res)) ?? ""
-		}
-	#endif
 		return ""
 	}
 
