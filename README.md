@@ -35,6 +35,8 @@ Add this project as a dependency in your Package.swift file.
 .Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", versions: Version(0,0,0)..<Version(10,0,0))
 ```
 
+## Edge Cases.
+If you encounter error like such ``` sqlite3.h file not found ``` during ```$ swift build ```, the workaround is to install the sqlite3-dev i.e. ```$ sudo apt-get install libsqlite3-dev```
 
 ## Further Information
 For more information on the Perfect project, please visit [perfect.org](http://perfect.org).
