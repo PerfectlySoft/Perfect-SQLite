@@ -1,7 +1,6 @@
 import XCTest
+@testable import SQLiteTests
 
-import SQLiteTestSuite
-
-var tests = [XCTestCaseEntry]()
-tests += SQLiteTestSuite.allTests()
-XCTMain(tests)
+XCTMain([
+	testCase(SQLiteTests.allTests),
+	])
