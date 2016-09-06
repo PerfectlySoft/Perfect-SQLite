@@ -216,6 +216,12 @@ public class SQLite {
 				return
 			}
 		}
+		
+		guard r == SQLITE_ROW || r == SQLITE_DONE else {
+			try checkRes(r)
+			return
+		}
+		
 		var rowNum = 1
 		while r == SQLITE_ROW {
 			handleRow(stat, rowNum)

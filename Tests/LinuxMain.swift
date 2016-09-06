@@ -3,4 +3,4 @@ import XCTest
 
 XCTMain([
 	testCase(SQLiteTests.allTests),
-	])
+])

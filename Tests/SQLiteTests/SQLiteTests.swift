@@ -75,6 +75,23 @@ class SQLiteTests: XCTestCase {
 			return
 		}
 	}
+
+	func testKeyViolation() {
+		
+		do {
+			
+			let sqlite = try SQLite(testDb)
+			try sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY)")
+			try sqlite.execute(statement: "INSERT INTO test VALUES (1)")
+			try sqlite.execute(statement: "INSERT INTO test VALUES (1)")
+			XCTAssert(false)
+			sqlite.close()
+			
+		} catch let e {
+			XCTAssert(true, "Exception while testing SQLite \(e)")
+			return
+		}
+	}
 }
 
 extension SQLiteTests {
@@ -84,3 +101,4 @@ extension SQLiteTests {
         ]
     }
 }
+
