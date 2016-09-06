@@ -1,6 +1,6 @@
 //
 //  Package.swift
-//  PerfectExamples
+//  PerfectSQLite
 //
 //  Created by Kyle Jessup on 3/22/16.
 //	Copyright (C) 2016 PerfectlySoft, Inc.
@@ -23,7 +23,7 @@ let package = Package(
     name: "SQLite",
     targets: [],
     dependencies: [
-        .Package(url: "https://github.com/PerfectlySoft/Perfect-sqlite3-support.git", versions: Version(0,0,0)..<Version(10,0,0))
+        .Package(url: "https://github.com/PerfectlySoft/Perfect-sqlite3-support.git", majorVersion: 2, minor: 0)
     ],
     exclude: []
 )
