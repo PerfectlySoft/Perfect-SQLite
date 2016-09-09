@@ -173,7 +173,7 @@ public class SQLite {
     /// - parameter statement: String statement to be executed
     /// - parameter handleRow: Block to be executed for each row
     /// - throws: ()
-	public func forEachRow(statement: String, handleRow: (SQLiteStmt, Int) -> ()) throws {
+	public func forEachRow(statement: String, handleRow: (SQLiteStmt, Int) throws -> ()) throws {
 		let stat = try prepare(statement: statement)
 		defer { stat.finalize() }
 
@@ -186,7 +186,7 @@ public class SQLite {
     /// - parameter doBindings: Block to perform bindings on statement
     /// - parameter handleRow:  Block to execute for each row
     /// - throws: ()
-	public func forEachRow(statement: String, doBindings: (SQLiteStmt) throws -> (), handleRow: (SQLiteStmt, Int) -> ()) throws {
+	public func forEachRow(statement: String, doBindings: (SQLiteStmt) throws -> (), handleRow: (SQLiteStmt, Int) throws -> ()) throws {
 		let stat = try prepare(statement: statement)
 		defer { stat.finalize() }
 
@@ -195,7 +195,7 @@ public class SQLite {
 		try forEachRowBody(stat: stat, handleRow: handleRow)
 	}
 
-	func forEachRowBody(stat: SQLiteStmt, handleRow: (SQLiteStmt, Int) -> ()) throws {
+	func forEachRowBody(stat: SQLiteStmt, handleRow: (SQLiteStmt, Int) throws -> ()) throws {
 		var r = stat.step()
 		if r == SQLITE_LOCKED || r == SQLITE_BUSY {
 			miniSleep(millis: 1)
@@ -224,7 +224,7 @@ public class SQLite {
 		
 		var rowNum = 1
 		while r == SQLITE_ROW {
-			handleRow(stat, rowNum)
+			try handleRow(stat, rowNum)
 			rowNum += 1
 			r = stat.step()
 		}

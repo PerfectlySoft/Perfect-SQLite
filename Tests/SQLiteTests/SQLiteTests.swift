@@ -92,6 +92,30 @@ class SQLiteTests: XCTestCase {
 			return
 		}
 	}
+	
+	func testHandleRowThrowing() {
+		do {
+			
+			let sqlite = try SQLite(testDb)
+			try sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY)")
+			try sqlite.execute(statement: "INSERT INTO test VALUES (1)")
+			try sqlite.execute(statement: "INSERT INTO test VALUES (2)")
+			try sqlite.forEachRow(statement: "SELECT * FROM test;") {
+				stmt, num in
+				throw SQLiteError.Error(code: 99, msg: "TEST")
+			}
+			XCTAssert(false)
+			sqlite.close()
+			
+		} catch let e {
+			guard let error = e as? SQLiteError else {
+				XCTAssert(false)
+				return
+			}
+			XCTAssert("\(error)" == "Error(99, \"TEST\")", "Exception while testing SQLite.")
+			return
+		}
+	}
 }
 
 extension SQLiteTests {
