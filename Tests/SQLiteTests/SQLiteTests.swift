@@ -116,6 +116,66 @@ class SQLiteTests: XCTestCase {
 			return
 		}
 	}
+
+
+	func testParamBinding() {
+
+		do {
+
+			let sqlite = try SQLite(testDb)
+
+			try sqlite.execute(statement: "CREATE TABLE testtext (id TEXT PRIMARY KEY NOT NULL, url TEXT NOT NULL, akey TEXT NOT NULL)")
+
+
+			try sqlite.execute(statement: "INSERT INTO testtext (id, url, akey) VALUES(?,?,?)", count: 1) {
+				(stmt: SQLiteStmt, num: Int) throws -> () in
+
+				try stmt.bind(position: 1, "860bdc6f-49e5-4719-9604-45f46306fe5b")
+				try stmt.bind(position: 2, "http://www.perfect.org")
+				try stmt.bind(position: 3, "epuT6ZdN")
+			}
+			try sqlite.execute(statement: "INSERT INTO testtext (id, url, akey) VALUES(?,?,?)", count: 1) {
+				(stmt: SQLiteStmt, num: Int) throws -> () in
+
+				try stmt.bind(position: 1, "2eb6d068-280d-44e9-b364-5792d889f577")
+				try stmt.bind(position: 2, "http://www.treefrog.ca")
+				try stmt.bind(position: 3, "tcMBSxPO")
+			}
+
+
+
+			var id = ""
+			var url = ""
+			var akey = ""
+			let option = "epuT6ZdN"
+
+			try sqlite.forEachRow(statement: "SELECT id, url, akey FROM testtext WHERE akey = ?", doBindings: {
+
+				(statement: SQLiteStmt) -> () in
+				try statement.bind(position: 1, option)
+
+			}, handleRow: {(statement: SQLiteStmt, i:Int) -> () in
+				id = String(statement.columnText(position: 0))
+				url = String(statement.columnText(position: 1))
+				akey = String(statement.columnText(position: 2))
+			})
+
+			XCTAssert(id == "860bdc6f-49e5-4719-9604-45f46306fe5b", "ID does not match \(id)")
+			XCTAssert(url == "http://www.perfect.org", "URL does not match.")
+			XCTAssert(akey == "epuT6ZdN", "akey does not match.")
+
+
+
+			sqlite.close()
+
+		} catch let e {
+			XCTAssert(false, "Exception while testing SQLite \(e)")
+			return
+		}
+	}
+
+
+
 }
 
 extension SQLiteTests {
