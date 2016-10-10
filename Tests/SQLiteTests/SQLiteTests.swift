@@ -174,14 +174,65 @@ class SQLiteTests: XCTestCase {
 		}
 	}
 
-
-
+	func testMultiThread1() {
+		do {
+			let sqlite = try SQLite(testDb)
+			defer {
+				sqlite.close()
+			}
+			try sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY)")
+		} catch let e {
+			XCTAssert(false, "Exception while testing SQLite \(e)")
+			return
+		}
+		do {
+			
+			let expect = self.expectation(description: "Worker thread")
+			
+			DispatchQueue.global(qos: .default).async {
+				defer {
+					expect.fulfill()
+				}
+				for loop in 1...10 {
+					do {
+						let sqlite = try SQLite(testDb)
+						defer {
+							sqlite.close()
+						}
+						try sqlite.execute(statement: "SELECT * FROM test")
+					} catch {
+						XCTAssert(false, "Exception while testing SQLite \(error) in loop \(loop)")
+					}
+				}
+			}
+		
+			let sqlite = try SQLite(testDb)
+			defer {
+				sqlite.close()
+			}
+			
+			for i in 1...1000 {
+				try sqlite.execute(statement: "INSERT INTO test (id) VALUES (\(i))")
+			}
+		} catch let e {
+			XCTAssert(false, "Exception while testing SQLite \(e)")
+			return
+		}
+		self.waitForExpectations(timeout: 1000.0) {
+			_ in
+			
+		}
+	}
 }
 
 extension SQLiteTests {
     static var allTests : [(String, (SQLiteTests) -> () throws -> ())] {
         return [
-            ("testSQLite", testSQLite)
+			("testSQLite", testSQLite),
+			("testKeyViolation", testKeyViolation),
+			("testParamBinding", testParamBinding),
+			("testHandleRowThrowing", testHandleRowThrowing),
+			("testMultiThread1", testMultiThread1)
         ]
     }
 }

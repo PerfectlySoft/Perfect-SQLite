@@ -39,13 +39,14 @@ public class SQLite {
     /// - parameter path: String path to SQLite database
     /// - parameter readOnly: Optional, Bool flag for read/write setting, defaults to false
     /// - throws: SQLiteError
-	public init(_ path: String, readOnly: Bool = false) throws {
+	public init(_ path: String, readOnly: Bool = false, busyTimeoutMillis: Int = 1000) throws {
 		self.path = path
 		let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE
 		let res = sqlite3_open_v2(path, &self.sqlite3, flags, nil)
 		if res != SQLITE_OK {
 			throw SQLiteError.Error(code: Int(res), msg: "Unable to open database "+path)
 		}
+		sqlite3_busy_timeout(self.sqlite3, Int32(busyTimeoutMillis))
 	}
 
 	/// Close the SQLite database.
@@ -56,6 +57,14 @@ public class SQLite {
 		}
 	}
 
+	/// Close the SQLite database.
+	public func close<T>(after: (SQLite) -> T) -> T {
+		defer {
+			close()
+		}
+		return after(self)
+	}
+	
 	deinit {
 		close()
 	}
@@ -197,26 +206,6 @@ public class SQLite {
 
 	func forEachRowBody(stat: SQLiteStmt, handleRow: (SQLiteStmt, Int) throws -> ()) throws {
 		var r = stat.step()
-		if r == SQLITE_LOCKED || r == SQLITE_BUSY {
-			miniSleep(millis: 1)
-			if r == SQLITE_LOCKED {
-				let _ = try stat.reset()
-			}
-			r = stat.step()
-			var times = 1000000
-			while (r == SQLITE_LOCKED || r == SQLITE_BUSY) && times > 0 {
-				if r == SQLITE_LOCKED {
-					let _ = try stat.reset()
-				}
-				r = stat.step()
-				times -= 1
-			}
-			guard r != SQLITE_LOCKED && r != SQLITE_BUSY else {
-				try checkRes(r)
-				return
-			}
-		}
-		
 		guard r == SQLITE_ROW || r == SQLITE_DONE else {
 			try checkRes(r)
 			return

@@ -64,3 +64,4 @@ fastlane/screenshots
 
 Packages/
 SQLite.xcodeproj/
+.DS_Store
