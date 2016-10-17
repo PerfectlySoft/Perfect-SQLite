@@ -9,6 +9,7 @@
 import XCTest
 #if os(Linux)
     import SwiftGlibc
+	import Dispatch
 #else
     import Darwin
 #endif
