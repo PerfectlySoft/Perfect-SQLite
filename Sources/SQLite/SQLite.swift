@@ -547,6 +547,46 @@ public class SQLiteStmt {
 		return sqlite3_column_type(self.stat!, Int32(position))
 	}
 
+	/// Test if the indicated column is an integer
+	///
+	/// - parameter: Int position of column
+	/// - returns: Bool
+	public func isInteger(position: Int) -> Bool {
+		return SQLITE_INTEGER == columnType(position: position)
+	}
+	
+	/// Test if the indicated column is a Float
+	///
+	/// - parameter: Int position of column
+	/// - returns: Bool
+	public func isFloat(position: Int) -> Bool {
+		return SQLITE_FLOAT == columnType(position: position)
+	}
+	
+	/// Test if the indicated column is Text
+	///
+	/// - parameter: Int position of column
+	/// - returns: Bool
+	public func isText(position: Int) -> Bool {
+		return SQLITE_TEXT == columnType(position: position)
+	}
+	
+	/// Test if the indicated column is a Blob
+	///
+	/// - parameter: Int position of column
+	/// - returns: Bool
+	public func isBlob(position: Int) -> Bool {
+		return SQLITE_BLOB == columnType(position: position)
+	}
+	
+	/// Test if the indicated column is NULL
+	///
+	/// - parameter: Int position of column
+	/// - returns: Bool
+	public func isNull(position: Int) -> Bool {
+		return SQLITE_NULL == columnType(position: position)
+	}
+	
 	func checkRes(_ res: Int32) throws {
 		try checkRes(Int(res))
 	}
