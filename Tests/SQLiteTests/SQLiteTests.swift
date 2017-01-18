@@ -224,6 +224,68 @@ class SQLiteTests: XCTestCase {
 			
 		}
 	}
+	
+	func testNullChecking() {
+		do {
+			let sqlite = try SQLite(testDb)
+			
+			try sqlite.execute(statement: "CREATE TABLE testNullChecking (id TEXT PRIMARY KEY NOT NULL, name TEXT, int, doub, blob)")
+			
+			// Insert a row where all fields are null
+			try sqlite.doWithTransaction {
+				try sqlite.execute(statement: "INSERT INTO testNullChecking (id,name,int,doub,blob) VALUES (?,?,?,?,?)") {
+					(stmt: SQLiteStmt) throws -> () in
+					
+					try stmt.bind(position: 1, "null_row")
+					try stmt.bindNull(position: 2)
+					try stmt.bindNull(position: 3)
+					try stmt.bindNull(position: 4)
+					try stmt.bindNull(position: 5)
+				}
+			}
+
+			// Insert a row where none of the fields are null
+			try sqlite.doWithTransaction {
+				try sqlite.execute(statement: "INSERT INTO testNullChecking (id,name,int,doub,blob) VALUES (?,?,?,?,?)") {
+					(stmt: SQLiteStmt) throws -> () in
+					
+					try stmt.bind(position: 1, "nonnull_row")
+					try stmt.bind(position: 2, "World peace")
+					try stmt.bind(position: 3, 42)
+					try stmt.bind(position: 4, Double(42))
+					try stmt.bind(position: 5, [Int8](arrayLiteral: 0, 1, 2, 3))
+				}
+			}
+			
+			// Verify that all the fields are null
+			try sqlite.forEachRow(statement: "SELECT name,int,doub,blob FROM testNullChecking WHERE id = ?", doBindings: {(stmt: SQLiteStmt) -> () in
+				try stmt.bind(position: 1, "null_row")
+			}, handleRow: {(stmt: SQLiteStmt, i:Int) -> () in
+				let allNull = stmt.isNull(position: 0) && stmt.isNull(position: 1) && stmt.isNull(position: 2) && stmt.isNull(position: 3)
+				XCTAssertTrue(allNull)
+
+				let oneOrMoreHasData = stmt.isText(position: 0) || stmt.isInteger(position: 1) || stmt.isFloat(position: 2) || stmt.isBlob(position: 3)
+				XCTAssertFalse(oneOrMoreHasData)
+			})
+			
+			// Verify that none of the fields are null
+			try sqlite.forEachRow(statement: "SELECT name,int,doub,blob FROM testNullChecking WHERE id = ?", doBindings: {(stmt: SQLiteStmt) -> () in
+				try stmt.bind(position: 1, "nonnull_row")
+			}, handleRow: {(stmt: SQLiteStmt, i:Int) -> () in
+				let oneOrMoreIsNull = stmt.isNull(position: 0) || stmt.isNull(position: 1) || stmt.isNull(position: 2) || stmt.isNull(position: 3)
+				XCTAssertFalse(oneOrMoreIsNull)
+
+				let allHasData = stmt.isText(position: 0) && stmt.isInteger(position: 1) && stmt.isFloat(position: 2) && stmt.isBlob(position: 3)
+				XCTAssertTrue(allHasData)
+			})
+			
+			sqlite.close()
+			
+		} catch let e {
+			XCTAssert(false, "Exception while testing SQLite \(e)")
+			return
+		}
+	}
 }
 
 extension SQLiteTests {
@@ -233,7 +295,8 @@ extension SQLiteTests {
 			("testKeyViolation", testKeyViolation),
 			("testParamBinding", testParamBinding),
 			("testHandleRowThrowing", testHandleRowThrowing),
-			("testMultiThread1", testMultiThread1)
+			("testMultiThread1", testMultiThread1),
+			("testNullChecking", testNullChecking)
         ]
     }
 }
