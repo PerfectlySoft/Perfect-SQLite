@@ -69,6 +69,20 @@ public class SQLite {
 		close()
 	}
 
+	/// Enable loading SQLite extensions.
+	public func enableLoadExtension() {
+		if self.sqlite3 != nil {
+			sqlite3_enable_load_extension(self.sqlite3, 1)
+		}
+	}
+
+	/// Disable loading SQLite extensions.
+	public func enableLoadExtension() {
+		if self.sqlite3 != nil {
+			sqlite3_enable_load_extension(self.sqlite3, 0)
+		}
+	}
+
     /// Compile the SQL statement.
     ///
     /// - returns: A SQLiteStmt object representing the compiled statement.
