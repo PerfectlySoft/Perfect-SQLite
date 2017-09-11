@@ -14,11 +14,11 @@ import XCTest
     import Darwin
 #endif
 
-@testable import SQLite
+@testable import PerfectSQLite
 
 let testDb = "/tmp/sqlitetest.db"
 
-class SQLiteTests: XCTestCase {
+class PerfectSQLiteTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
@@ -47,6 +47,7 @@ class SQLiteTests: XCTestCase {
 					try stmt.bind(position: 2, "This is name bind \(num)")
 					try stmt.bind(position: 3, num)
 					try stmt.bind(position: 4, Double(num))
+					let num = Int8(num)
 					try stmt.bind(position: 5, [Int8](arrayLiteral: num+1, num+2, num+3, num+4, num+5))
 				}
 			}
@@ -64,6 +65,7 @@ class SQLiteTests: XCTestCase {
 				XCTAssert(doub == Double(num))
 				
 				let model: [Int8] = [1, 2, 3, 4, 5]
+				let num = Int8(num)
 				for idx in 0..<blob.count {
 					XCTAssert(model[idx] + num == blob[idx])
 				}
@@ -113,7 +115,7 @@ class SQLiteTests: XCTestCase {
 				XCTAssert(false)
 				return
 			}
-			XCTAssert("\(error)" == "Error(99, \"TEST\")", "Exception while testing SQLite.")
+			XCTAssertEqual("\(error)", "Error(code: 99, msg: \"TEST\")", "Exception while testing SQLite.")
 			return
 		}
 	}
@@ -288,8 +290,8 @@ class SQLiteTests: XCTestCase {
 	}
 }
 
-extension SQLiteTests {
-    static var allTests : [(String, (SQLiteTests) -> () throws -> ())] {
+extension PerfectSQLiteTests {
+    static var allTests : [(String, (PerfectSQLiteTests) -> () throws -> ())] {
         return [
 			("testSQLite", testSQLite),
 			("testKeyViolation", testKeyViolation),

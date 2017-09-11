@@ -17,7 +17,7 @@
 //===----------------------------------------------------------------------===//
 //
 
-import SQLite3
+import PerfectCSQLite3
 #if os(Linux)
 import SwiftGlibc
 #endif

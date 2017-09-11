@@ -65,3 +65,11 @@ fastlane/screenshots
 Packages/
 SQLite.xcodeproj/
 .DS_Store
+.build_lin/
+.packages_lin/
+PADockerfile_build
+PADockerfile_deploy
+Package.pins
+Package.resolved
+buildlinux
+*.xcodeproj/

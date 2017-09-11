@@ -1,6 +1,6 @@
 import XCTest
-@testable import SQLiteTests
+@testable import PerfectSQLiteTests
 
 XCTMain([
-	testCase(SQLiteTests.allTests),
+	testCase(PerfectSQLiteTests.allTests),
 ])

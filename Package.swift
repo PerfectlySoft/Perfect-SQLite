@@ -20,10 +20,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "SQLite",
+    name: "PerfectSQLite",
     targets: [],
     dependencies: [
-        .Package(url: "https://github.com/PerfectlySoft/Perfect-sqlite3-support.git", majorVersion: 2, minor: 0)
+        .Package(url: "https://github.com/PerfectlySoft/Perfect-sqlite3-support.git", majorVersion: 3)
     ],
     exclude: []
 )
