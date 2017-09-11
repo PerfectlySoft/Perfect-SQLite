@@ -45,16 +45,10 @@ This project provides a Swift wrapper around the SQLite 3 library.
 
 This package builds with Swift Package Manager and is part of the [Perfect](https://github.com/PerfectlySoft/Perfect) project. It was written to be stand-alone and so does not require PerfectLib or any other components.
 
-Ensure you have installed and activated the latest Swift 3.0 tool chain.
+Ensure you have installed and activated the latest Swift 3.0 / 3.1 tool chain.
 
+To learn more, you can read the full documentation guide [here](https://github.com/PerfectlySoft/PerfectDocs/blob/master/guide/SQLite.md) or jump to the example [here](#Usage-Example)
 
-## Issues
-
-We are transitioning to using JIRA for all bugs and support related issues, therefore the GitHub issues has been disabled.
-
-If you find a mistake, bug, or any other helpful suggestion you'd like to make on the docs please head over to [http://jira.perfect.org:8080/servicedesk/customer/portal/1](http://jira.perfect.org:8080/servicedesk/customer/portal/1) and raise it.
-
-A comprehensive list of open issues can be found at [http://jira.perfect.org:8080/projects/ISS/issues](http://jira.perfect.org:8080/projects/ISS/issues)
 
 ## Linux Build Notes
 
@@ -69,8 +63,99 @@ sudo apt-get install sqlite3
 Add this project as a dependency in your Package.swift file.
 
 ```
-.Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", majorVersion: 2, minor: 0)
+.Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", majorVersion: 2)
 ```
+
+### Edge Case
+If you encounter error like such ``` sqlite3.h file not found ``` during ```$ swift build ```, one solution is to install the sqlite3-dev i.e. ```$ sudo apt-get install libsqlite3-dev```
+
+
+## Usage Example
+
+Let’s assume you’d like to host a blog in Swift. First we need tables. Assuming you’ve created an SQLite file `./db/database`, we simply need to connect and add the tables. 
+
+```swift
+let dbPath = "./db/database"
+
+do {
+			let sqlite = try SQLite(dbPath)
+			defer {  
+				sqlite.close()
+			}
+			
+			try sqlite.execute(statement: "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY NOT NULL, post_title TEXT NOT NULL, post_content TEXT NOT NULL, featured_image_uri TEXT NOT NULL)")
+		} catch {
+			print("Failure creating database tables") //Handle Errors
+		}
+```
+
+Next, we would need to add some content. 
+
+```swift
+let dbPath = "./db/database"
+let postTitle = "Test Title"
+let postContent = "Lorem ipsum dolor sit amet…"
+
+do {
+   let sqlite = try SQLite(dbPath)
+   defer {
+     sqlite.close()
+   }
+
+   try sqlite.execute(statement: "INSERT INTO posts (post_title, post_content) VALUES (:1,:2)") {
+     (stmt:SQLiteStmt) -> () in
+
+     try stmt.bind(position: 1, postTitle)
+     try stmt.bind(position: 2, postContent)
+   }
+ } catch {
+		//Handle Errors
+ }
+```
+
+Finally, we retrieve posts and post titles from an SQLite database full of blog content. Each id, post, and title is appended to a dictionary for use elsewhere. 
+
+``` swift
+let dbPath = "./db/database"
+Var contentDict = [String: Any]()
+
+do {
+	let sqlite = try SQLite(dbPath)
+		defer {
+			sqlite.close() // This makes sure we close our connection.
+		}
+	
+	let demoStatement = "SELECT post_title, post_content FROM posts ORDER BY id DESC LIMIT :1"
+	
+	try sqlite.forEachRow(statement: demoStatement, doBindings {
+		
+		(statement: SQLiteStmt) -> () in
+		
+		let bindValue = 5
+		try statement.bind(position: 1, bindValue)
+		
+	}) {(statement: SQLiteStmt, i:Int) -> () in
+
+        self.contentDict.append([
+                "id": statement.columnText(position: 0),
+                "second_field": statement.columnText(position: 1),
+                "third_field": statement.columnText(position: 2)
+            ])
+  }
+	
+} catch {
+	//Handle Errors
+}
+```
+
+ 
+## Issues
+
+We are transitioning to using JIRA for all bugs and support related issues, therefore the GitHub issues has been disabled.
+
+If you find a mistake, bug, or any other helpful suggestion you'd like to make on the docs please head over to [http://jira.perfect.org:8080/servicedesk/customer/portal/1](http://jira.perfect.org:8080/servicedesk/customer/portal/1) and raise it.
+
+A comprehensive list of open issues can be found at [http://jira.perfect.org:8080/projects/ISS/issues](http://jira.perfect.org:8080/projects/ISS/issues)
 
 
 ## Further Information
