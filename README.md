@@ -24,7 +24,7 @@
 
 <p align="center">
     <a href="https://developer.apple.com/swift/" target="_blank">
-        <img src="https://img.shields.io/badge/Swift-3.0-orange.svg?style=flat" alt="Swift 3.0">
+        <img src="https://img.shields.io/badge/Swift-4.0-orange.svg?style=flat" alt="Swift 4.0">
     </a>
     <a href="https://developer.apple.com/swift/" target="_blank">
         <img src="https://img.shields.io/badge/Platforms-OS%20X%20%7C%20Linux%20-lightgray.svg?style=flat" alt="Platforms OS X | Linux">
@@ -40,12 +40,11 @@
     </a>
 </p>
 
-
 This project provides a Swift wrapper around the SQLite 3 library.
 
 This package builds with Swift Package Manager and is part of the [Perfect](https://github.com/PerfectlySoft/Perfect) project. It was written to be stand-alone and so does not require PerfectLib or any other components.
 
-Ensure you have installed and activated the latest Swift 3.0 / 3.1 tool chain.
+Ensure you have installed and activated the latest Swift 4.0 tool chain.
 
 To learn more, you can read the full documentation guide [here](https://github.com/PerfectlySoft/PerfectDocs/blob/master/guide/SQLite.md) or jump to the example [here](#Usage-Example)
 
@@ -63,7 +62,7 @@ sudo apt-get install sqlite3
 Add this project as a dependency in your Package.swift file.
 
 ```
-.Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", majorVersion: 2)
+.Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", majorVersion: 3)
 ```
 
 ### Edge Case
@@ -78,15 +77,15 @@ Let’s assume you’d like to host a blog in Swift. First we need tables. Assum
 let dbPath = "./db/database"
 
 do {
-			let sqlite = try SQLite(dbPath)
-			defer {  
-				sqlite.close()
-			}
-			
-			try sqlite.execute(statement: "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY NOT NULL, post_title TEXT NOT NULL, post_content TEXT NOT NULL, featured_image_uri TEXT NOT NULL)")
-		} catch {
-			print("Failure creating database tables") //Handle Errors
-		}
+	let sqlite = try SQLite(dbPath)
+	defer {  
+		sqlite.close()
+	}
+
+	try sqlite.execute(statement: "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY NOT NULL, post_title TEXT NOT NULL, post_content TEXT NOT NULL, featured_image_uri TEXT NOT NULL)")
+} catch {
+	print("Failure creating database tables") //Handle Errors
+}
 ```
 
 Next, we would need to add some content. 
@@ -159,4 +158,4 @@ A comprehensive list of open issues can be found at [http://jira.perfect.org:808
 
 
 ## Further Information
-For more information on the Perfect project, please visit [perfect.org](http://perfect.org).
+For more information on the Perfect project, please visit [perfect.org](http://www.perfect.org/docs/SQLite.html).
