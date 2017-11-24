@@ -58,7 +58,7 @@ class PerfectSQLiteTests: XCTestCase {
 				let name = stmt.columnText(position: 0)
 				let int = stmt.columnInt(position: 1)
 				let doub = stmt.columnDouble(position: 2)
-				let blob = stmt.columnBlob(position: 3)
+				let blob: [Int8] = stmt.columnIntBlob(position: 3)
 				
 				XCTAssert(name == "This is name bind \(num)")
 				XCTAssert(int == num)

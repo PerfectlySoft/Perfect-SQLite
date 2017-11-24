@@ -476,16 +476,25 @@ public class SQLiteStmt {
     ///
     /// - parameter position: Int position of column
     /// - returns: [Int8] blob
+	@available(*, deprecated, renamed:"columnIntBlob")
 	public func columnBlob(position: Int) -> [Int8] {
+		return columnIntBlob(position: position)
+	}
+	
+	/// Returns the blob data for the indicated column.
+	///
+	/// - parameter position: Int position of column
+	/// - returns: [I: BinaryInteger] blob
+	public func columnIntBlob<I: BinaryInteger>(position: Int) -> [I] {
 		let vp = sqlite3_column_blob(self.stat!, Int32(position))
 		let vpLen = Int(sqlite3_column_bytes(self.stat!, Int32(position)))
-
+		
 		guard vpLen > 0 else {
-			return [Int8]()
+			return []
 		}
 		
-		var ret = [Int8]()
-		if var bytesPtr = vp?.bindMemory(to: Int8.self, capacity: vpLen) {
+		var ret = [I]()
+		if var bytesPtr = vp?.bindMemory(to: I.self, capacity: vpLen) {
 			for _ in 0..<vpLen {
 				ret.append(bytesPtr.pointee)
 				bytesPtr = bytesPtr.successor()
