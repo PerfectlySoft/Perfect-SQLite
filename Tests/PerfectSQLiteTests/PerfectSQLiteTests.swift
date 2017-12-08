@@ -45,7 +45,59 @@ class PerfectSQLiteTests: XCTestCase {
 		SwORMLogging.flush()
 		super.tearDown()
 	}
-	func getTestDB() throws -> Database<PerfectSQLite.SQLiteDatabaseConfiguration> {
+	
+	func testCreate1() {
+		do {
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			try db.create(TestTable1.self, policy: .dropTable)
+			do {
+				let t2 = db.table(TestTable2.self)
+				try t2.index(\TestTable2.parentId)
+			}
+			let t1 = db.table(TestTable1.self)
+			let subId = UUID()
+			try db.transaction {
+				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+				try t1.insert(newOne)
+				let newSub1 = TestTable2(id: subId, parentId: 2000, date: Date(), name: "Me", int: nil, doub: nil, blob: nil)
+				let newSub2 = TestTable2(id: UUID(), parentId: 2000, date: Date(), name: "Not Me", int: nil, doub: nil, blob: nil)
+				let t2 = db.table(TestTable2.self)
+				try t2.insert([newSub1, newSub2])
+			}
+			let j2 = try t1.join(\.subTables, on: \.id, equals: \.parentId)
+				.where(\TestTable1.id == .integer(2000) && \TestTable2.name == .string("Me"))
+			try db.transaction {
+				let j2a = try j2.select().map { $0 }
+				XCTAssert(try j2.count() == 1)
+				XCTAssert(j2a.count == 1)
+				guard j2a.count == 1 else {
+					return
+				}
+				let obj = j2a[0]
+				XCTAssert(obj.id == 2000)
+				XCTAssertNotNil(obj.subTables)
+				let subTables = obj.subTables!
+				XCTAssert(subTables.count == 1)
+				let obj2 = subTables[0]
+				XCTAssert(obj2.id == subId)
+			}
+			try db.create(TestTable1.self)
+			do {
+				let j2a = try j2.select().map { $0 }
+				XCTAssert(try j2.count() == 1)
+				XCTAssert(j2a[0].id == 2000)
+			}
+			try db.create(TestTable1.self, policy: .dropTable)
+			do {
+				let j2b = try j2.select().map { $0 }
+				XCTAssert(j2b.count == 0)
+			}
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func getTestDB() throws -> Database<SQLiteDatabaseConfiguration> {
 		do {
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
 			try db.create(TestTable1.self, policy: .dropTable)
@@ -183,7 +235,7 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
-	func testCreate() {
+	func testCreate2() {
 		do {
 			let db = try getTestDB()
 			try db.create(TestTable1.self, policy: .dropTable)
@@ -243,11 +295,12 @@ class PerfectSQLiteTests: XCTestCase {
 	}
 	
 	static var allTests = [
+		("testCreate1", testCreate1),
+		("testCreate2", testCreate2),
 		("testSelectAll", testSelectAll),
 		("testSelectJoin", testSelectJoin),
 		("testInsert", testInsert),
 		("testUpdate", testUpdate),
-		("testCreate", testCreate),
 		("testSelectLimit", testSelectLimit),
 		("testSelectWhereNULL", testSelectWhereNULL)
 	]
