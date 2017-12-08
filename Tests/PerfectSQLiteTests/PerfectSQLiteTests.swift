@@ -7,299 +7,249 @@
 //
 
 import XCTest
-#if os(Linux)
-    import SwiftGlibc
-	import Dispatch
-#else
-    import Darwin
-#endif
-
+import PerfectSwORM
 @testable import PerfectSQLite
 
-let testDb = "/tmp/sqlitetest.db"
-
-class PerfectSQLiteTests: XCTestCase {
-    
-    override func setUp() {
-        super.setUp()
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-		unlink(testDb)
-    }
-    
-    override func tearDown() {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-        super.tearDown()
-    }
-    
-	func testSQLite() {
-		
-		do {
-			
-			let sqlite = try SQLite(testDb)
-			
-			try sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT, int, doub, blob)")
-			
-			try sqlite.doWithTransaction {
-				try sqlite.execute(statement: "INSERT INTO test (id,name,int,doub,blob) VALUES (?,?,?,?,?)", count: 5) {
-					(stmt: SQLiteStmt, num: Int) throws -> () in
-					
-					try stmt.bind(position: 1, num)
-					try stmt.bind(position: 2, "This is name bind \(num)")
-					try stmt.bind(position: 3, num)
-					try stmt.bind(position: 4, Double(num))
-					let num = Int8(num)
-					try stmt.bind(position: 5, [Int8](arrayLiteral: num+1, num+2, num+3, num+4, num+5))
-				}
-			}
-			
-			try sqlite.forEachRow(statement: "SELECT name,int,doub,blob FROM test ORDER BY id") {
-				(stmt: SQLiteStmt, num: Int) -> () in
-				
-				let name = stmt.columnText(position: 0)
-				let int = stmt.columnInt(position: 1)
-				let doub = stmt.columnDouble(position: 2)
-				let blob: [Int8] = stmt.columnIntBlob(position: 3)
-				
-				XCTAssert(name == "This is name bind \(num)")
-				XCTAssert(int == num)
-				XCTAssert(doub == Double(num))
-				
-				let model: [Int8] = [1, 2, 3, 4, 5]
-				let num = Int8(num)
-				for idx in 0..<blob.count {
-					XCTAssert(model[idx] + num == blob[idx])
-				}
-			}
-			
-			sqlite.close()
-			
-		} catch let e {
-			XCTAssert(false, "Exception while testing SQLite \(e)")
-			return
-		}
+struct TestTable1: Codable, TableNameProvider {
+	enum CodingKeys: String, CodingKey {
+		case id, name, integer = "int", double = "doub", blob, subTables
 	}
-
-	func testKeyViolation() {
-		
-		do {
-			
-			let sqlite = try SQLite(testDb)
-			try sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY)")
-			try sqlite.execute(statement: "INSERT INTO test VALUES (1)")
-			try sqlite.execute(statement: "INSERT INTO test VALUES (1)")
-			XCTAssert(false)
-			sqlite.close()
-			
-		} catch let e {
-			XCTAssert(true, "Exception while testing SQLite \(e)")
-			return
-		}
-	}
-	
-	func testHandleRowThrowing() {
-		do {
-			
-			let sqlite = try SQLite(testDb)
-			try sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY)")
-			try sqlite.execute(statement: "INSERT INTO test VALUES (1)")
-			try sqlite.execute(statement: "INSERT INTO test VALUES (2)")
-			try sqlite.forEachRow(statement: "SELECT * FROM test;") {
-				stmt, num in
-				throw SQLiteError.Error(code: 99, msg: "TEST")
-			}
-			XCTAssert(false)
-			sqlite.close()
-			
-		} catch let e {
-			guard let error = e as? SQLiteError else {
-				XCTAssert(false)
-				return
-			}
-			XCTAssertEqual("\(error)", "Error(code: 99, msg: \"TEST\")", "Exception while testing SQLite.")
-			return
-		}
-	}
-
-
-	func testParamBinding() {
-
-		do {
-
-			let sqlite = try SQLite(testDb)
-
-			try sqlite.execute(statement: "CREATE TABLE testtext (id TEXT PRIMARY KEY NOT NULL, url TEXT NOT NULL, akey TEXT NOT NULL)")
-
-
-			try sqlite.execute(statement: "INSERT INTO testtext (id, url, akey) VALUES(?,?,?)", count: 1) {
-				(stmt: SQLiteStmt, num: Int) throws -> () in
-
-				try stmt.bind(position: 1, "860bdc6f-49e5-4719-9604-45f46306fe5b")
-				try stmt.bind(position: 2, "http://www.perfect.org")
-				try stmt.bind(position: 3, "epuT6ZdN")
-			}
-			try sqlite.execute(statement: "INSERT INTO testtext (id, url, akey) VALUES(?,?,?)", count: 1) {
-				(stmt: SQLiteStmt, num: Int) throws -> () in
-
-				try stmt.bind(position: 1, "2eb6d068-280d-44e9-b364-5792d889f577")
-				try stmt.bind(position: 2, "http://www.treefrog.ca")
-				try stmt.bind(position: 3, "tcMBSxPO")
-			}
-
-
-
-			var id = ""
-			var url = ""
-			var akey = ""
-			let option = "epuT6ZdN"
-
-			try sqlite.forEachRow(statement: "SELECT id, url, akey FROM testtext WHERE akey = ?", doBindings: {
-
-				(statement: SQLiteStmt) -> () in
-				try statement.bind(position: 1, option)
-
-			}, handleRow: {(statement: SQLiteStmt, i:Int) -> () in
-				id = String(statement.columnText(position: 0))
-				url = String(statement.columnText(position: 1))
-				akey = String(statement.columnText(position: 2))
-			})
-
-			XCTAssert(id == "860bdc6f-49e5-4719-9604-45f46306fe5b", "ID does not match \(id)")
-			XCTAssert(url == "http://www.perfect.org", "URL does not match.")
-			XCTAssert(akey == "epuT6ZdN", "akey does not match.")
-
-
-
-			sqlite.close()
-
-		} catch let e {
-			XCTAssert(false, "Exception while testing SQLite \(e)")
-			return
-		}
-	}
-
-	func testMultiThread1() {
-		do {
-			let sqlite = try SQLite(testDb)
-			defer {
-				sqlite.close()
-			}
-			try sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY)")
-		} catch let e {
-			XCTAssert(false, "Exception while testing SQLite \(e)")
-			return
-		}
-		do {
-			
-			let expect = self.expectation(description: "Worker thread")
-			
-			DispatchQueue.global(qos: .default).async {
-				defer {
-					expect.fulfill()
-				}
-				for loop in 1...10 {
-					do {
-						let sqlite = try SQLite(testDb)
-						defer {
-							sqlite.close()
-						}
-						try sqlite.execute(statement: "SELECT * FROM test")
-					} catch {
-						XCTAssert(false, "Exception while testing SQLite \(error) in loop \(loop)")
-					}
-				}
-			}
-		
-			let sqlite = try SQLite(testDb)
-			defer {
-				sqlite.close()
-			}
-			
-			for i in 1...1000 {
-				try sqlite.execute(statement: "INSERT INTO test (id) VALUES (\(i))")
-			}
-		} catch let e {
-			XCTAssert(false, "Exception while testing SQLite \(e)")
-			return
-		}
-		self.waitForExpectations(timeout: 1000.0) {
-			_ in
-			
-		}
-	}
-	
-	func testNullChecking() {
-		do {
-			let sqlite = try SQLite(testDb)
-			
-			try sqlite.execute(statement: "CREATE TABLE testNullChecking (id TEXT PRIMARY KEY NOT NULL, name TEXT, int, doub, blob)")
-			
-			// Insert a row where all fields are null
-			try sqlite.doWithTransaction {
-				try sqlite.execute(statement: "INSERT INTO testNullChecking (id,name,int,doub,blob) VALUES (?,?,?,?,?)") {
-					(stmt: SQLiteStmt) throws -> () in
-					
-					try stmt.bind(position: 1, "null_row")
-					try stmt.bindNull(position: 2)
-					try stmt.bindNull(position: 3)
-					try stmt.bindNull(position: 4)
-					try stmt.bindNull(position: 5)
-				}
-			}
-
-			// Insert a row where none of the fields are null
-			try sqlite.doWithTransaction {
-				try sqlite.execute(statement: "INSERT INTO testNullChecking (id,name,int,doub,blob) VALUES (?,?,?,?,?)") {
-					(stmt: SQLiteStmt) throws -> () in
-					
-					try stmt.bind(position: 1, "nonnull_row")
-					try stmt.bind(position: 2, "World peace")
-					try stmt.bind(position: 3, 42)
-					try stmt.bind(position: 4, Double(42))
-					try stmt.bind(position: 5, [Int8](arrayLiteral: 0, 1, 2, 3))
-				}
-			}
-			
-			// Verify that all the fields are null
-			try sqlite.forEachRow(statement: "SELECT name,int,doub,blob FROM testNullChecking WHERE id = ?", doBindings: {(stmt: SQLiteStmt) -> () in
-				try stmt.bind(position: 1, "null_row")
-			}, handleRow: {(stmt: SQLiteStmt, i:Int) -> () in
-				let allNull = stmt.isNull(position: 0) && stmt.isNull(position: 1) && stmt.isNull(position: 2) && stmt.isNull(position: 3)
-				XCTAssertTrue(allNull)
-
-				let oneOrMoreHasData = stmt.isText(position: 0) || stmt.isInteger(position: 1) || stmt.isFloat(position: 2) || stmt.isBlob(position: 3)
-				XCTAssertFalse(oneOrMoreHasData)
-			})
-			
-			// Verify that none of the fields are null
-			try sqlite.forEachRow(statement: "SELECT name,int,doub,blob FROM testNullChecking WHERE id = ?", doBindings: {(stmt: SQLiteStmt) -> () in
-				try stmt.bind(position: 1, "nonnull_row")
-			}, handleRow: {(stmt: SQLiteStmt, i:Int) -> () in
-				let oneOrMoreIsNull = stmt.isNull(position: 0) || stmt.isNull(position: 1) || stmt.isNull(position: 2) || stmt.isNull(position: 3)
-				XCTAssertFalse(oneOrMoreIsNull)
-
-				let allHasData = stmt.isText(position: 0) && stmt.isInteger(position: 1) && stmt.isFloat(position: 2) && stmt.isBlob(position: 3)
-				XCTAssertTrue(allHasData)
-			})
-			
-			sqlite.close()
-			
-		} catch let e {
-			XCTAssert(false, "Exception while testing SQLite \(e)")
-			return
-		}
-	}
+	static let tableName = "test_table_1"
+	let id: Int
+	let name: String?
+	let integer: Int?
+	let double: Double?
+	let blob: [UInt8]?
+	let subTables: [TestTable2]?
 }
 
-extension PerfectSQLiteTests {
-    static var allTests : [(String, (PerfectSQLiteTests) -> () throws -> ())] {
-        return [
-			("testSQLite", testSQLite),
-			("testKeyViolation", testKeyViolation),
-			("testParamBinding", testParamBinding),
-			("testHandleRowThrowing", testHandleRowThrowing),
-			("testMultiThread1", testMultiThread1),
-			("testNullChecking", testNullChecking)
-        ]
-    }
+struct TestTable2: Codable {
+	let id: UUID
+	let parentId: Int
+	let date: Date
+	let name: String?
+	let int: Int?
+	let doub: Double?
+	let blob: [UInt8]?
+}
+
+let testDBRowCount = 5
+
+class PerfectSQLiteTests: XCTestCase {
+	let testDBName = "/tmp/sworm_test.db"
+	override func setUp() {
+		super.setUp()
+		unlink(testDBName)
+	}
+	override func tearDown() {
+		SwORMLogging.flush()
+		super.tearDown()
+	}
+	func getTestDB() throws -> Database<PerfectSQLite.SQLiteDatabaseConfiguration> {
+		do {
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			try db.create(TestTable1.self, policy: .dropTable)
+			try db.transaction {
+				() -> () in
+				try db.table(TestTable1.self)
+					.insert((1...testDBRowCount).map {
+					num -> TestTable1 in
+					let n = UInt8(num)
+					let blob: [UInt8]? = (num % 2 != 0) ? nil : [UInt8](arrayLiteral: n+1, n+2, n+3, n+4, n+5)
+					return TestTable1(id: num,
+									  name: "This is name bind \(num)",
+										integer: num,
+										double: Double(num),
+										blob: blob,
+										subTables: nil)
+				})
+			}
+			try db.transaction {
+				() -> () in
+				try db.table(TestTable2.self)
+					.insert((1...testDBRowCount).flatMap {
+					parentId -> [TestTable2] in
+					return (1...testDBRowCount).map {
+						num -> TestTable2 in
+						let n = UInt8(num)
+						let blob: [UInt8]? = [UInt8](arrayLiteral: n+1, n+2, n+3, n+4, n+5)
+						return TestTable2(id: UUID(),
+										  parentId: parentId,
+										  date: Date(),
+										  name: num % 2 == 0 ? "This is name bind \(num)" : "Me",
+										  int: num,
+										  doub: Double(num),
+										  blob: blob)
+					}
+				})
+			}
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+		return Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+	}
+	
+	func testSelectAll() {
+		do {
+			let db = try getTestDB()
+			let j2 = try db.table(TestTable1.self)
+				.select()
+			for row in j2 {
+				print("\(row)")
+			}
+		} catch {
+			print("\(error)")
+		}
+	}
+	
+	func testSelectJoin() {
+		do {
+			let db = try getTestDB()
+			let j2 = try db.table(TestTable1.self)
+				.order(by: \TestTable1.name)
+				.join(\.subTables, on: \.id, equals: \.parentId)
+				.order(by: \TestTable2.id)
+				.where(\TestTable2.name == .string("Me"))
+			
+			let j2c = try j2.count()
+			let j2a = try j2.select().map{$0}
+			let j2ac = j2a.count
+			XCTAssert(j2c != 0)
+			XCTAssert(j2c == j2ac)
+			j2a.forEach { row in
+				XCTAssertFalse(row.subTables?.isEmpty ?? true)
+			}
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testInsert() {
+		do {
+			let db = try getTestDB()
+			let t1 = db.table(TestTable1.self)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			try t1.insert(newOne)
+			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
+			let j2 = try j1.select().map {$0}
+			XCTAssert(try j1.count() == 1)
+			XCTAssert(j2[0].id == 2000)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testUpdate() {
+		do {
+			let db = try getTestDB()
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			try db.transaction {
+				try db.table(TestTable1.self).insert(newOne)
+				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 40, double: nil, blob: nil, subTables: nil)
+				try db.table(TestTable1.self)
+					.where(\TestTable1.id == .integer(newOne.id))
+					.update(newOne2, setKeys: \TestTable1.name)
+			}
+			let j2 = try db.table(TestTable1.self)
+				.where(\TestTable1.id == .integer(newOne.id))
+				.select().map { $0 }
+			XCTAssert(j2.count == 1)
+			XCTAssert(j2[0].id == 2000)
+			XCTAssert(j2[0].name == "New One Updated")
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testDelete() {
+		do {
+			let db = try getTestDB()
+			let t1 = db.table(TestTable1.self)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			try t1.insert(newOne)
+			let j1 = try t1
+				.where(\TestTable1.id == .integer(newOne.id))
+				.select().map { $0 }
+			XCTAssert(j1.count == 1)
+			try t1
+				.where(\TestTable1.id == .integer(newOne.id))
+				.delete()
+			let j2 = try t1
+				.where(\TestTable1.id == .integer(newOne.id))
+				.select().map { $0 }
+			XCTAssert(j2.count == 0)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testCreate() {
+		do {
+			let db = try getTestDB()
+			try db.create(TestTable1.self, policy: .dropTable)
+			do {
+				let t2 = db.table(TestTable2.self)
+				try t2.index(\TestTable2.parentId)
+			}
+			let t1 = db.table(TestTable1.self)
+			do {
+				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+				try t1.insert(newOne)
+			}
+			let j2 = try t1.where(\TestTable1.id == .integer(2000)).select()
+			do {
+				let j2a = j2.map { $0 }
+				XCTAssert(j2a.count == 1)
+				XCTAssert(j2a[0].id == 2000)
+			}
+			try db.create(TestTable1.self)
+			do {
+				let j2a = j2.map { $0 }
+				XCTAssert(j2a.count == 1)
+				XCTAssert(j2a[0].id == 2000)
+			}
+			try db.create(TestTable1.self, policy: .dropTable)
+			do {
+				let j2b = j2.map { $0 }
+				XCTAssert(j2b.count == 0)
+			}
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testSelectLimit() {
+		do {
+			let db = try getTestDB()
+			let j2 = db.table(TestTable1.self).limit(3, skip: 2)
+			XCTAssert(try j2.count() == 3)
+		} catch {
+			print("\(error)")
+		}
+	}
+	
+	func testSelectWhereNULL() {
+		do {
+			let db = try getTestDB()
+			let t1 = db.table(TestTable1.self)
+			let j1 = t1.where(\TestTable1.blob == .null)
+			XCTAssert(try j1.count() > 0)
+			let j2 = t1.where(\TestTable1.blob != .null)
+			XCTAssert(try j2.count() > 0)
+			SwORMLogging.flush()
+		} catch {
+			print("\(error)")
+		}
+	}
+	
+	static var allTests = [
+		("testSelectAll", testSelectAll),
+		("testSelectJoin", testSelectJoin),
+		("testInsert", testInsert),
+		("testUpdate", testUpdate),
+		("testCreate", testCreate),
+		("testSelectLimit", testSelectLimit),
+		("testSelectWhereNULL", testSelectWhereNULL)
+	]
 }
 

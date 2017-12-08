@@ -23,6 +23,7 @@ let package = Package(
     name: "PerfectSQLite",
     targets: [],
     dependencies: [
+		.Package(url: "https://github.com/PerfectlySoft/Perfect-SwORM.git", majorVersion: 0),
         .Package(url: "https://github.com/PerfectlySoft/Perfect-sqlite3-support.git", majorVersion: 3)
     ],
     exclude: []
