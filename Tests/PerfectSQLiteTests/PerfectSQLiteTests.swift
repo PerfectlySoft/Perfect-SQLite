@@ -145,12 +145,13 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let j2 = try db.table(TestTable1.self)
-				.select()
+				.select().map { $0 }
+			XCTAssert(!j2.isEmpty)
 			for row in j2 {
-				print("\(row)")
+				XCTAssertNil(row.subTables)
 			}
 		} catch {
-			print("\(error)")
+			XCTAssert(false, "\(error)")
 		}
 	}
 	
@@ -176,7 +177,7 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
-	func testInsert() {
+	func testInsert1() {
 		do {
 			let db = try getTestDB()
 			let t1 = db.table(TestTable1.self)
@@ -191,13 +192,47 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
+	func testInsert2() {
+		do {
+			let db = try getTestDB()
+			let t1 = db.table(TestTable1.self)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			try t1.insert(newOne, ignoreKeys: \TestTable1.integer)
+			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
+			let j2 = try j1.select().map {$0}
+			XCTAssert(try j1.count() == 1)
+			XCTAssert(j2[0].id == 2000)
+			XCTAssertNil(j2[0].integer)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testInsert3() {
+		do {
+			let db = try getTestDB()
+			let t1 = db.table(TestTable1.self)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			let newTwo = TestTable1(id: 2001, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			try t1.insert([newOne, newTwo], setKeys: \TestTable1.id, \TestTable1.integer)
+			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
+			let j2 = try j1.select().map {$0}
+			XCTAssert(try j1.count() == 1)
+			XCTAssert(j2[0].id == 2000)
+			XCTAssert(j2[0].integer == 40)
+			XCTAssertNil(j2[0].name)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
 	func testUpdate() {
 		do {
 			let db = try getTestDB()
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 			try db.transaction {
 				try db.table(TestTable1.self).insert(newOne)
-				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 40, double: nil, blob: nil, subTables: nil)
+				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41, double: nil, blob: nil, subTables: nil)
 				try db.table(TestTable1.self)
 					.where(\TestTable1.id == .integer(newOne.id))
 					.update(newOne2, setKeys: \TestTable1.name)
@@ -208,6 +243,7 @@ class PerfectSQLiteTests: XCTestCase {
 			XCTAssert(j2.count == 1)
 			XCTAssert(j2[0].id == 2000)
 			XCTAssert(j2[0].name == "New One Updated")
+			XCTAssert(j2[0].integer == 40)
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
@@ -299,8 +335,11 @@ class PerfectSQLiteTests: XCTestCase {
 		("testCreate2", testCreate2),
 		("testSelectAll", testSelectAll),
 		("testSelectJoin", testSelectJoin),
-		("testInsert", testInsert),
+		("testInsert1", testInsert1),
+		("testInsert2", testInsert2),
+		("testInsert3", testInsert3),
 		("testUpdate", testUpdate),
+		("testDelete", testDelete),
 		("testSelectLimit", testSelectLimit),
 		("testSelectWhereNULL", testSelectWhereNULL)
 	]
