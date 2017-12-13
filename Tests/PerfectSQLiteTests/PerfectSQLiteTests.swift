@@ -364,6 +364,7 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
+	// this is the general-overview example used in the readme
 	func testPersonThing() {
 		do {
 			// SwORM can work with most Codable types.
@@ -421,7 +422,6 @@ class PerfectSQLiteTests: XCTestCase {
 					print(number.number)
 				}
 			}
-			
 			SwORMLogging.flush()
 		} catch {
 			XCTAssert(false, "\(error)")
