@@ -230,15 +230,17 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
-			try db.transaction {
+			let newId = try db.transaction {
+				() -> Int in
 				try db.table(TestTable1.self).insert(newOne)
 				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41, double: nil, blob: nil, subTables: nil)
 				try db.table(TestTable1.self)
 					.where(\TestTable1.id == .integer(newOne.id))
 					.update(newOne2, setKeys: \TestTable1.name)
+				return newOne2.id
 			}
 			let j2 = try db.table(TestTable1.self)
-				.where(\TestTable1.id == .integer(newOne.id))
+				.where(\TestTable1.id == .integer(newId))
 				.select().map { $0 }
 			XCTAssert(j2.count == 1)
 			XCTAssert(j2[0].id == 2000)
@@ -255,16 +257,11 @@ class PerfectSQLiteTests: XCTestCase {
 			let t1 = db.table(TestTable1.self)
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 			try t1.insert(newOne)
-			let j1 = try t1
-				.where(\TestTable1.id == .integer(newOne.id))
-				.select().map { $0 }
+			let query = t1.where(\TestTable1.id == .integer(newOne.id))
+			let j1 = try query.select().map { $0 }
 			XCTAssert(j1.count == 1)
-			try t1
-				.where(\TestTable1.id == .integer(newOne.id))
-				.delete()
-			let j2 = try t1
-				.where(\TestTable1.id == .integer(newOne.id))
-				.select().map { $0 }
+			try query.delete()
+			let j2 = try query.select().map { $0 }
 			XCTAssert(j2.count == 0)
 		} catch {
 			XCTAssert(false, "\(error)")
@@ -306,6 +303,43 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
+	func testCreate3() {
+		struct FakeTestTable1: Codable, TableNameProvider {
+			enum CodingKeys: String, CodingKey {
+				case id, name, double = "doub", double2 = "doub2", blob, subTables
+			}
+			static let tableName = "test_table_1"
+			let id: Int
+			let name: String?
+			let double2: Double?
+			let double: Double?
+			let blob: [UInt8]?
+			let subTables: [TestTable2]?
+		}
+		do {
+			let db = try getTestDB()
+			try db.create(TestTable1.self, policy: [.dropTable, .shallow])
+			
+			do {
+				let t1 = db.table(TestTable1.self)
+				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+				try t1.insert(newOne)
+			}
+			do {
+				try db.create(FakeTestTable1.self, policy: [.reconcileTable, .shallow])
+				let t1 = db.table(FakeTestTable1.self)
+				let j2 = try t1.where(\FakeTestTable1.id == .integer(2000)).select()
+				do {
+					let j2a = j2.map { $0 }
+					XCTAssert(j2a.count == 1)
+					XCTAssert(j2a[0].id == 2000)
+				}
+			}
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
 	func testSelectLimit() {
 		do {
 			let db = try getTestDB()
@@ -330,9 +364,74 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
+	func testPersonThing() {
+		do {
+			// SwORM can work with most Codable types.
+			struct PhoneNumber: Codable {
+				let id: UUID
+				let personId: UUID
+				let planetCode: Int
+				let number: String
+			}
+			struct Person: Codable {
+				let id: UUID
+				let firstName: String
+				let lastName: String
+				let phoneNumbers: [PhoneNumber]?
+			}
+			// SwORM usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library.
+			// Create a `Database` object by providing a configuration. These examples will use SQLite for demonstration purposes.
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			// Create the table if it hasn't been done already.
+			// Table creates are recursive by default, so "PhoneNumber" is also created here.
+			try db.create(Person.self, policy: .reconcileTable)
+			// Get a reference to the tables we will be inserting data into.
+			let personTable = db.table(Person.self)
+			let numbersTable = db.table(PhoneNumber.self)
+			// Add an index for personId, if it does not already exist.
+			try numbersTable.index(\PhoneNumber.personId)
+			do {
+				// Insert some sample data.
+				let personId1 = UUID()
+				let personId2 = UUID()
+				try personTable.insert([
+					Person(id: personId1, firstName: "Owen", lastName: "Lars", phoneNumbers: nil),
+					Person(id: personId2, firstName: "Beru", lastName: "Lars", phoneNumbers: nil)])
+				try numbersTable.insert([
+					PhoneNumber(id: UUID(), personId: personId1, planetCode: 12, number: "555-555-1212"),
+					PhoneNumber(id: UUID(), personId: personId1, planetCode: 15, number: "555-555-2222"),
+					PhoneNumber(id: UUID(), personId: personId2, planetCode: 12, number: "555-555-1212")
+				])
+			}
+			// Let's find all people with the last name of Lars which have a phone number on planet 12.
+			let query = try personTable
+					.order(by: \Person.lastName)
+				.join(\.phoneNumbers, on: \.id, equals: \.personId)
+					.order(by: \PhoneNumber.planetCode)
+				.where(\Person.lastName == .string("Lars") && \PhoneNumber.planetCode == .integer(12))
+				.select()
+			// Loop through them and print the names.
+			for user in query {
+				print("\(user.firstName) \(user.lastName)")
+				// We joined PhoneNumbers, so we should have values here.
+				guard let numbers = user.phoneNumbers else {
+					continue
+				}
+				for number in numbers {
+					print(number.number)
+				}
+			}
+			
+			SwORMLogging.flush()
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
 	static var allTests = [
 		("testCreate1", testCreate1),
 		("testCreate2", testCreate2),
+		("testCreate3", testCreate3),
 		("testSelectAll", testSelectAll),
 		("testSelectJoin", testSelectJoin),
 		("testInsert1", testInsert1),

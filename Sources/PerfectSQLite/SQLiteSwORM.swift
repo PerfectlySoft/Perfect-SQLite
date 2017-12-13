@@ -127,9 +127,23 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 }
 
+struct SQLiteColumnInfo: Codable {
+	let cid: Int
+	let name: String
+	let type: String
+	let notnull: Int
+	let dflt_value: String
+	let pk: Bool
+}
+
 class SQLiteGenDelegate: SQLGenDelegate {
+	let database: SQLite
 	var parentTableStack: [TableStructure] = []
 	var bindings: Bindings = []
+	
+	init(_ db: SQLite) {
+		database = db
+	}
 	
 	func getCreateIndexSQL(forTable name: String, on column: String) throws -> [String] {
 		let stat =
@@ -154,16 +168,70 @@ class SQLiteGenDelegate: SQLGenDelegate {
 		if policy.contains(.dropTable) {
 			sub += ["DROP TABLE IF EXISTS \(try quote(identifier: forTable.tableName))"]
 		}
-		sub += [
-		"""
-		CREATE TABLE IF NOT EXISTS \(try quote(identifier: forTable.tableName)) (
-			\(try forTable.columns.map { try mapColumn($0) }.joined(separator: ",\n\t"))
-		)
-		"""]
+		if !policy.contains(.dropTable),
+				policy.contains(.reconcileTable),
+				let existingColumns = getExistingColumnData(forTable: forTable.tableName),
+				!existingColumns.isEmpty {
+			let existingColumnMap: [String:SQLiteColumnInfo] = .init(uniqueKeysWithValues: existingColumns.map { ($0.name, $0) })
+			let newColumnMap: [String:TableStructure.Column] = .init(uniqueKeysWithValues: forTable.columns.map { ($0.name, $0) })
+			
+			let addColumns = newColumnMap.keys.filter { existingColumnMap[$0] == nil }
+			let removeColumns: [String] = existingColumnMap.keys.filter { newColumnMap[$0] == nil }
+			
+			if !removeColumns.isEmpty {
+				let nameQ = try quote(identifier: forTable.tableName)
+				let tempNameQ = try quote(identifier: "temp_\(forTable.tableName)_temp")
+				let sharedColumns = existingColumns.map { $0.name }.filter { !removeColumns.contains($0) }
+				sub += [ // sqlite does not have 'drop column'
+					"ALTER TABLE \(nameQ) RENAME TO \(tempNameQ)",
+					"""
+					CREATE TABLE IF NOT EXISTS \(nameQ) (
+					\(try forTable.columns.map { try mapColumnType($0) }.joined(separator: ",\n\t"))
+					)
+					""",
+					"""
+					INSERT INTO \(nameQ) (\(sharedColumns.joined(separator: ",")))
+					SELECT \(sharedColumns.joined(separator: ","))
+					FROM \(tempNameQ)
+					""",
+					"DROP TABLE \(tempNameQ)"
+				]
+			} else {
+				sub += try addColumns.flatMap { newColumnMap[$0] }.map {
+					let nameType = try mapColumnType($0)
+					return """
+					ALTER TABLE \(try quote(identifier: forTable.tableName)) ADD COLUMN \(nameType)
+					"""
+				}
+			}
+			return sub
+		} else {
+			sub += [
+			"""
+			CREATE TABLE IF NOT EXISTS \(try quote(identifier: forTable.tableName)) (
+				\(try forTable.columns.map { try mapColumnType($0) }.joined(separator: ",\n\t"))
+			)
+			"""]
+		}
 		return sub
 	}
 	
-	func mapColumn(_ column: TableStructure.Column) throws -> String {
+	func getExistingColumnData(forTable: String) -> [SQLiteColumnInfo]? {
+		do {
+			let prep = try database.prepare(statement: "PRAGMA table_info(\"\(forTable)\")")
+			let exeDelegate = SQLiteExeDelegate(database, stat: prep)
+			var ret: [SQLiteColumnInfo] = []
+			while try exeDelegate.hasNext() {
+				let rowDecoder: SwORMRowDecoder<ColumnKey> = SwORMRowDecoder(delegate: exeDelegate)
+				ret.append(try SQLiteColumnInfo(from: rowDecoder))
+			}
+			return ret
+		} catch {
+			return nil
+		}
+	}
+	
+	func mapColumnType(_ column: TableStructure.Column) throws -> String {
 		let name = column.name
 		let type = column.type
 		let typeName: String
@@ -234,7 +302,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 typealias SQLiteColumnMap = [String:Int]
 
 class SQLiteExeDelegate: SQLExeDelegate {
-	let database: SQLite?
+	let database: SQLite
 	let statement: SQLiteStmt
 	let columnMap: SQLiteColumnMap
 	init(_ db: SQLite, stat: SQLiteStmt) {
@@ -258,15 +326,12 @@ class SQLiteExeDelegate: SQLExeDelegate {
 	func hasNext() throws -> Bool {
 		let step = statement.step()
 		guard step == SQLITE_ROW || step == SQLITE_DONE else {
-			throw SQLiteSwORMError(database!.errMsg())
+			throw SQLiteSwORMError(database.errMsg())
 		}
 		return step == SQLITE_ROW
 	}
 	func next<A>() -> KeyedDecodingContainer<A>? where A : CodingKey {
-		guard let db = database else {
-			return nil
-		}
-		return KeyedDecodingContainer(SQLiteSwORMRowReader<A>(db, stat: statement, columns: columnMap))
+		return KeyedDecodingContainer(SQLiteSwORMRowReader<A>(database, stat: statement, columns: columnMap))
 	}
 	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: SwORMExpression) throws {
 		switch expr {
@@ -299,7 +364,7 @@ class SQLiteExeDelegate: SQLExeDelegate {
 
 struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
 	var sqlGenDelegate: SQLGenDelegate {
-		return SQLiteGenDelegate()
+		return SQLiteGenDelegate(sqlite)
 	}
 	func sqlExeDelegate(forSQL sql: String) throws -> SQLExeDelegate {
 		let prep = try sqlite.prepare(statement: sql)
