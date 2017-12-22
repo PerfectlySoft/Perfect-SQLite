@@ -5,6 +5,11 @@
 ## Build generated
 build/
 DerivedData
+.build*
+*.resolved
+*.pins
+Package/
+*.xcodeproj
 
 ## Various settings
 *.pbxuser
