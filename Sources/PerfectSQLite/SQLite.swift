@@ -275,68 +275,72 @@ public class SQLiteStmt {
 		return sqlite3_step(self.stat!)
 	}
 
-	/// Bind the Double value to the indicated parameter.
-    ///
-    /// - parameter position: Int position of binding
-    /// - parameter d: Double to be bound
-    /// - throws: ()
-	public func bind(position: Int, _ d: Double) throws {
-		try checkRes(sqlite3_bind_double(self.stat!, Int32(position), d))
-	}
+  /// Bind any value to the indicated parameter
+  /// - parameters:
+  ///   - position: Int position of binding
+  ///   - x: Any value, even nil to be bound
+  /// - throws: SQLiteError.Error(-1234, "Incompatible")
+  public func bind(position: Int, _ x: Any?) throws {
+    guard let y = x else {
+      try checkRes(sqlite3_bind_null(self.stat!, Int32(position)))
+      return
+    }
+    if y is [UInt8], let z = y as? [UInt8] {
+      try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), z, Int32(z.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
+    } else if y is [Int8], let z = y as? [Int8] {
+      try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), z, Int32(z.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
+    } else if y is String, let z = y as? String {
+      try checkRes(sqlite3_bind_text(self.stat!, Int32(position), z, Int32(z.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
+    } else if y is Int64, let z = y as? Int64 {
+      try checkRes(sqlite3_bind_int64(self.stat!, Int32(position), z))
+    } else if y is Int, let z = y as? Int {
+      try checkRes(sqlite3_bind_int64(self.stat!, Int32(position), Int64(z)))
+    } else if y is Int32, let z = y as? Int32 {
+      try checkRes(sqlite3_bind_int(self.stat!, Int32(position), Int32(z)))
+    } else if y is Double, let z = y as? Double {
+      try checkRes(sqlite3_bind_double(self.stat!, Int32(position), z))
+    } else {
+      let tp = type(of: y)
+      throw SQLiteError.Error(code: -1234, msg: "param #\(position) with type of \(tp) is not compatible")
+    }
+  }
 
-	/// Bind the Int32 value to the indicated parameter.
-    ///
-    /// - parameter position: Int position of binding
-    /// - parameter i: Int32 to be bound
-    /// - throws: ()
-	public func bind(position: Int, _ i: Int32) throws {
-		try checkRes(sqlite3_bind_int(self.stat!, Int32(position), Int32(i)))
-	}
+  /// Bind any value to the indicated parameter
+  /// - parameters:
+  ///   - name: name of the parameter to bind
+  ///   - x: Any value, even nil to be bound
+  /// - throws: SQLiteError.Error(-1235, "Incompatible")
+  public func bind(name: String, _ x: Any?) throws {
+    guard let y = x else {
+      try checkRes(sqlite3_bind_null(self.stat!, Int32(bindParameterIndex(name: name))))
+      return
+    }
+    if y is [Int8], let z = y as? [Int8] {
+      try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name: name)), z, Int32(z.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
+    } else if y is String, let z = y as? String {
+      try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name: name)), z, Int32(z.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
+    } else if y is Int64, let z = y as? Int64 {
+      try checkRes(sqlite3_bind_int64(self.stat!, Int32(bindParameterIndex(name: name)), z))
+    } else if y is Int, let z = y as? Int {
+      try checkRes(sqlite3_bind_int64(self.stat!, Int32(bindParameterIndex(name: name)), Int64(z)))
+    } else if y is Int32, let z = y as? Int32 {
+      try checkRes(sqlite3_bind_int(self.stat!, Int32(bindParameterIndex(name: name)), Int32(z)))
+    } else if y is Double, let z = y as? Double {
+      try checkRes(sqlite3_bind_double(self.stat!, Int32(bindParameterIndex(name: name)), z))
+    } else {
+      let tp = type(of: y)
+      throw SQLiteError.Error(code: -1235, msg: "param #\(name) with type of \(tp) is not compatible")
+    }
+  }
 
-	/// Bind the Int value to the indicated parameter.
-    ///
-    /// - parameter position: Int position of binding
-    /// - parameter i: Int to be bound
-    /// - throws: ()
-	public func bind(position: Int, _ i: Int) throws {
-		try checkRes(sqlite3_bind_int64(self.stat!, Int32(position), Int64(i)))
-	}
-
-	/// Bind the Int64 value to the indicated parameter.
-    ///
-    /// - parameter position: Int position of binding
-    /// - parameter i: Int64 to be bound
-    /// - throws: ()
-	public func bind(position: Int, _ i: Int64) throws {
-		try checkRes(sqlite3_bind_int64(self.stat!, Int32(position), i))
-	}
-
-	/// Bind the String value to the indicated parameter.
-    ///
-    /// - parameter position: Int position of binding
-    /// - parameter s: String to be bound
-    /// - throws: ()
-	public func bind(position: Int, _ s: String) throws {
-		try checkRes(sqlite3_bind_text(self.stat!, Int32(position), s, Int32(s.utf8.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
-	}
-
-	/// Bind the [Int8] blob value to the indicated parameter.
-    ///
-    /// - parameter position: Int position of binding
-    /// - parameter b: [Int8] blob to be bound
-    /// - throws: ()
-	public func bind(position: Int, _ b: [Int8]) throws {
-		try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
-	}
-
-	/// Bind the [UInt8] blob value to the indicated parameter.
-    ///
-    /// - parameter position: Int position of binding
-    /// - parameter b: [UInt8] blob to be bound
-    /// - throws: ()
-	public func bind(position: Int, _ b: [UInt8]) throws {
-		try checkRes(sqlite3_bind_blob(self.stat!, Int32(position), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
-	}
+  /// Bind a null to the indicated parameter.
+  /// **NOTE** This api is deprecated, use bind(position, nil) directly.
+  /// - parameter position: postion to be bound
+  /// - throws: ()
+  @available(*, deprecated)
+  public func bindNull(position: Int) throws {
+    try checkRes(sqlite3_bind_null(self.stat!, Int32(position)))
+  }
 
 	/// Bind a blob of `count` zero values to the indicated parameter.
     ///
@@ -345,68 +349,6 @@ public class SQLiteStmt {
     /// - throws: ()
 	public func bindZeroBlob(position: Int, count: Int) throws {
 		try checkRes(sqlite3_bind_zeroblob(self.stat!, Int32(position), Int32(count)))
-	}
-
-	/// Bind a null to the indicated parameter.
-    ///
-    /// - parameter position: Int position of binding
-    /// - throws: ()
-	public func bindNull(position: Int) throws {
-		try checkRes(sqlite3_bind_null(self.stat!, Int32(position)))
-	}
-
-	/// Bind the Double value to the indicated parameter.
-    ///
-    /// - parameter name: String name of binding
-    /// - parameter d: Double to be bound
-    /// - throws: ()
-	public func bind(name: String, _ d: Double) throws {
-		try checkRes(sqlite3_bind_double(self.stat!, Int32(bindParameterIndex(name: name)), d))
-	}
-
-	/// Bind the Int32 value to the indicated parameter.
-    ///
-    /// - parameter name: String name of binding
-    /// - parameter i: Int32 to be bound
-    /// - throws: ()
-	public func bind(name: String, _ i: Int32) throws {
-		try checkRes(sqlite3_bind_int(self.stat!, Int32(bindParameterIndex(name: name)), Int32(i)))
-	}
-
-	/// Bind the Int value to the indicated parameter.
-    ///
-    /// - parameter name: String name of binding
-    /// - parameter i: Int to be bound
-    /// - throws: ()
-	public func bind(name: String, _ i: Int) throws {
-		try checkRes(sqlite3_bind_int64(self.stat!, Int32(bindParameterIndex(name: name)), Int64(i)))
-	}
-
-	/// Bind the Int64 value to the indicated parameter.
-    ///
-    /// - parameter name: String name of binding
-    /// - parameter i: Int64 to be bound
-    /// - throws: ()
-	public func bind(name: String, _ i: Int64) throws {
-		try checkRes(sqlite3_bind_int64(self.stat!, Int32(bindParameterIndex(name: name)), i))
-	}
-
-	/// Bind the String value to the indicated parameter.
-    ///
-    /// - parameter name: String name of binding
-    /// - parameter s: String to be bound
-    /// - throws: ()
-	public func bind(name: String, _ s: String) throws {
-		try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name: name)), s, Int32(s.utf8.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
-	}
-
-	/// Bind the [Int8] blob value to the indicated parameter.
-    ///
-    /// - parameter name: String name of binding
-    /// - parameter b: [Int8] blob to be bound
-    /// - throws: ()
-	public func bind(name: String, _ b: [Int8]) throws {
-		try checkRes(sqlite3_bind_text(self.stat!, Int32(bindParameterIndex(name: name)), b, Int32(b.count), unsafeBitCast(OpaquePointer(bitPattern: -1), to: sqlite_destructor.self)))
 	}
 
 	/// Bind a blob of `count` zero values to the indicated parameter.
@@ -419,9 +361,10 @@ public class SQLiteStmt {
 	}
 
 	/// Bind a null to the indicated parameter.
-    ///
-    /// - parameter name: String name of binding
-    /// - throws: ()
+  /// **NOTE** This api is deprecated, use bind(name, nil) directly.
+  /// - parameter name: String name of binding
+  /// - throws: ()
+  @available(*, deprecated)
 	public func bindNull(name: String) throws {
 		try checkRes(sqlite3_bind_null(self.stat!, Int32(bindParameterIndex(name: name))))
 	}

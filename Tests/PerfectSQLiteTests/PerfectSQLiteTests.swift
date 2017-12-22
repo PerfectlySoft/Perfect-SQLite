@@ -239,10 +239,10 @@ class PerfectSQLiteTests: XCTestCase {
 					(stmt: SQLiteStmt) throws -> () in
 					
 					try stmt.bind(position: 1, "null_row")
-					try stmt.bindNull(position: 2)
-					try stmt.bindNull(position: 3)
-					try stmt.bindNull(position: 4)
-					try stmt.bindNull(position: 5)
+					try stmt.bind(position: 2, nil)
+					try stmt.bind(position: 3, nil)
+					try stmt.bind(position: 4, nil)
+					try stmt.bind(position: 5, nil)
 				}
 			}
 
