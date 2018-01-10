@@ -1,34 +1,33 @@
 //
-//  SQLiteSwORM.swift
-//  PerfectSwORM
+//  SQLiteCRUD.swift
 //
 //  Created by Kyle Jessup on 2017-11-28.
 //
 
 import Foundation
-import PerfectSwORM
+import PerfectCRUD
 import PerfectCSQLite3
 
-struct SQLiteSwORMError: Error {
+struct SQLiteCRUDError: Error {
 	let msg: String
 	init(_ m: String) {
 		msg = m
-		SwORMLogging.log(.error, m)
+		CRUDLogging.log(.error, m)
 	}
 }
 
 // maps column name to position which must be computer once before row reading action
-typealias SQLiteSwORMColumnMap = [String:Int]
+typealias SQLiteCRUDColumnMap = [String:Int]
 
-class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
+class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	typealias Key = K
 	var codingPath: [CodingKey] = []
 	var allKeys: [Key] = []
 	let database: SQLite
 	let statement: SQLiteStmt
-	let columns: SQLiteSwORMColumnMap
+	let columns: SQLiteCRUDColumnMap
 	// the SQLiteStmt has been successfully step()ed to the next row
-	init(_ db: SQLite, stat: SQLiteStmt, columns cols: SQLiteSwORMColumnMap) {
+	init(_ db: SQLite, stat: SQLiteStmt, columns cols: SQLiteCRUDColumnMap) {
 		database = db
 		statement = stat
 		columns = cols
@@ -87,7 +86,7 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
 		let position = columnPosition(key)
 		guard let special = SpecialType(type) else {
-			throw SwORMDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
+			throw CRUDDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
 		}
 		switch special {
 		case .uint8Array:
@@ -102,13 +101,13 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		case .uuid:
 			let str = statement.columnText(position: position)
 			guard let uuid = UUID(uuidString: str) else {
-				throw SwORMDecoderError("Invalid UUID string \(str).")
+				throw CRUDDecoderError("Invalid UUID string \(str).")
 			}
 			return uuid as! T
 		case .date:
 			let str = statement.columnText(position: position)
 			guard let date = Date(fromISO8601: str) else {
-				throw SwORMDecoderError("Invalid Date string \(str).")
+				throw CRUDDecoderError("Invalid Date string \(str).")
 			}
 			return date as! T
 		}
@@ -145,11 +144,11 @@ class SQLiteGenDelegate: SQLGenDelegate {
 		database = db
 	}
 	
-	func getCreateIndexSQL(forTable name: String, on column: String) throws -> [String] {
+	func getCreateIndexSQL(forTable name: String, on columns: [String], unique: Bool) throws -> [String] {
 		let stat =
 		"""
-		CREATE INDEX IF NOT EXISTS \(try quote(identifier: "index_\(name)_\(column)"))
-		ON \(try quote(identifier: name)) (\(try quote(identifier: column)))
+		CREATE \(unique ? "UNIQUE " : "")INDEX IF NOT EXISTS \(try quote(identifier: "index_\(columns.joined(separator: "_"))"))
+		ON \(try quote(identifier: name)) (\(try columns.map{try quote(identifier: $0)}.joined(separator: ",")))
 		"""
 		return [stat]
 	}
@@ -222,7 +221,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 			let exeDelegate = SQLiteExeDelegate(database, stat: prep)
 			var ret: [SQLiteColumnInfo] = []
 			while try exeDelegate.hasNext() {
-				let rowDecoder: SwORMRowDecoder<ColumnKey> = SwORMRowDecoder(delegate: exeDelegate)
+				let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: exeDelegate)
 				ret.append(try SQLiteColumnInfo(from: rowDecoder))
 			}
 			return ret
@@ -266,7 +265,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 			typeName = "TEXT"
 		default:
 			guard let special = SpecialType(type) else {
-				throw SQLiteSwORMError("Unsupported SQL column type \(type)")
+				throw SQLiteCRUDError("Unsupported SQL column type \(type)")
 			}
 			switch special {
 			case .uint8Array:
@@ -328,14 +327,14 @@ class SQLiteExeDelegate: SQLExeDelegate {
 	func hasNext() throws -> Bool {
 		let step = statement.step()
 		guard step == SQLITE_ROW || step == SQLITE_DONE else {
-			throw SQLiteSwORMError(database.errMsg())
+			throw SQLiteCRUDError(database.errMsg())
 		}
 		return step == SQLITE_ROW
 	}
 	func next<A>() -> KeyedDecodingContainer<A>? where A : CodingKey {
-		return KeyedDecodingContainer(SQLiteSwORMRowReader<A>(database, stat: statement, columns: columnMap))
+		return KeyedDecodingContainer(SQLiteCRUDRowReader<A>(database, stat: statement, columns: columnMap))
 	}
-	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: SwORMExpression) throws {
+	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: CRUDExpression) throws {
 		switch expr {
 		case .lazy(let e):
 			try bindOne(stat, position: position, expr: e())
@@ -359,7 +358,7 @@ class SQLiteExeDelegate: SQLExeDelegate {
 			 .equality(_, _), .inequality(_, _),
 			 .not(_), .lessThan(_, _), .lessThanEqual(_, _),
 			 .greaterThan(_, _), .greaterThanEqual(_, _), .keyPath(_):
-			throw SQLiteSwORMError("Asked to bind unsupported expression type: \(expr)")
+			throw SQLiteCRUDError("Asked to bind unsupported expression type: \(expr)")
 		}
 	}
 }

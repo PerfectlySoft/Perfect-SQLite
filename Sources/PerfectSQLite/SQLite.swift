@@ -125,7 +125,7 @@ public class SQLite {
     /// - throws: ()
 	public func execute(statement: String) throws {
 		try forEachRow(statement: statement, doBindings: { (SQLiteStmt) throws -> () in () }) {
-			(SQLiteStmt) -> () in
+			_, _ in
 			// nothing
 		}
 	}
@@ -137,7 +137,7 @@ public class SQLite {
     /// - throws: ()
 	public func execute(statement: String, doBindings: (SQLiteStmt) throws -> ()) throws {
 		try forEachRow(statement: statement, doBindings: doBindings) {
-			(SQLiteStmt) -> () in
+			_, _ in
 			// nothing
 		}
 	}
@@ -155,7 +155,7 @@ public class SQLite {
 		for idx in 1...count {
 			try doBindings(stat, idx)
 			try forEachRowBody(stat: stat) {
-				(SQLiteStmt) -> () in
+				_, _ in
 				// nothing
 			}
 			let _ = try stat.reset()

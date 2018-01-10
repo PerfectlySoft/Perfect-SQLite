@@ -7,7 +7,7 @@
 //
 
 import XCTest
-import PerfectSwORM
+import PerfectCRUD
 @testable import PerfectSQLite
 
 struct TestTable1: Codable, TableNameProvider {
@@ -21,6 +21,20 @@ struct TestTable1: Codable, TableNameProvider {
 	let double: Double?
 	let blob: [UInt8]?
 	let subTables: [TestTable2]?
+	
+	init(id: Int,
+		 name: String? = nil,
+		 integer: Int? = nil,
+		 double: Double? = nil,
+		 blob: [UInt8]? = nil,
+		 subTables: [TestTable2]? = nil) {
+		self.id = id
+		self.name = name
+		self.integer = integer
+		self.double = double
+		self.blob = blob
+		self.subTables = subTables
+	}
 }
 
 struct TestTable2: Codable {
@@ -31,18 +45,34 @@ struct TestTable2: Codable {
 	let int: Int?
 	let doub: Double?
 	let blob: [UInt8]?
+	
+	init(id: UUID,
+		 parentId: Int,
+		 date: Date,
+		 name: String? = nil,
+		 int: Int? = nil,
+		 doub: Double? = nil,
+		 blob: [UInt8]? = nil) {
+		self.id = id
+		self.parentId = parentId
+		self.date = date
+		self.name = name
+		self.int = int
+		self.doub = doub
+		self.blob = blob
+	}
 }
 
 let testDBRowCount = 5
 
 class PerfectSQLiteTests: XCTestCase {
-	let testDBName = "/tmp/sworm_test.db"
+	let testDBName = "/tmp/crud_test.db"
 	override func setUp() {
 		super.setUp()
 		unlink(testDBName)
 	}
 	override func tearDown() {
-		SwORMLogging.flush()
+		CRUDLogging.flush()
 		super.tearDown()
 	}
 	
@@ -52,15 +82,15 @@ class PerfectSQLiteTests: XCTestCase {
 			try db.create(TestTable1.self, policy: .dropTable)
 			do {
 				let t2 = db.table(TestTable2.self)
-				try t2.index(\TestTable2.parentId)
+				try t2.index(\.parentId)
 			}
 			let t1 = db.table(TestTable1.self)
 			let subId = UUID()
 			try db.transaction {
-				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+				let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 				try t1.insert(newOne)
-				let newSub1 = TestTable2(id: subId, parentId: 2000, date: Date(), name: "Me", int: nil, doub: nil, blob: nil)
-				let newSub2 = TestTable2(id: UUID(), parentId: 2000, date: Date(), name: "Not Me", int: nil, doub: nil, blob: nil)
+				let newSub1 = TestTable2(id: subId, parentId: 2000, date: Date(), name: "Me")
+				let newSub2 = TestTable2(id: UUID(), parentId: 2000, date: Date(), name: "Not Me")
 				let t2 = db.table(TestTable2.self)
 				try t2.insert([newSub1, newSub2])
 			}
@@ -112,8 +142,7 @@ class PerfectSQLiteTests: XCTestCase {
 									  name: "This is name bind \(num)",
 										integer: num,
 										double: Double(num),
-										blob: blob,
-										subTables: nil)
+										blob: blob)
 				})
 			}
 			try db.transaction {
@@ -161,7 +190,7 @@ class PerfectSQLiteTests: XCTestCase {
 			let j2 = try db.table(TestTable1.self)
 				.order(by: \TestTable1.name)
 				.join(\.subTables, on: \.id, equals: \.parentId)
-				.order(by: \TestTable2.id)
+				.order(by: \.id)
 				.where(\TestTable2.name == .string("Me"))
 			
 			let j2c = try j2.count()
@@ -181,7 +210,7 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let t1 = db.table(TestTable1.self)
-			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 			try t1.insert(newOne)
 			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
 			let j2 = try j1.select().map {$0}
@@ -196,7 +225,7 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let t1 = db.table(TestTable1.self)
-			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 			try t1.insert(newOne, ignoreKeys: \TestTable1.integer)
 			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
 			let j2 = try j1.select().map {$0}
@@ -212,8 +241,8 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let t1 = db.table(TestTable1.self)
-			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
-			let newTwo = TestTable1(id: 2001, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
+			let newTwo = TestTable1(id: 2001, name: "New One", integer: 40)
 			try t1.insert([newOne, newTwo], setKeys: \TestTable1.id, \TestTable1.integer)
 			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
 			let j2 = try j1.select().map {$0}
@@ -229,14 +258,14 @@ class PerfectSQLiteTests: XCTestCase {
 	func testUpdate() {
 		do {
 			let db = try getTestDB()
-			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 			let newId = try db.transaction {
 				() -> Int in
 				try db.table(TestTable1.self).insert(newOne)
-				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41, double: nil, blob: nil, subTables: nil)
+				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41)
 				try db.table(TestTable1.self)
 					.where(\TestTable1.id == .integer(newOne.id))
-					.update(newOne2, setKeys: \TestTable1.name)
+					.update(newOne2, setKeys: \.name)
 				return newOne2.id
 			}
 			let j2 = try db.table(TestTable1.self)
@@ -255,7 +284,7 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let t1 = db.table(TestTable1.self)
-			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 			try t1.insert(newOne)
 			let query = t1.where(\TestTable1.id == .integer(newOne.id))
 			let j1 = try query.select().map { $0 }
@@ -271,14 +300,14 @@ class PerfectSQLiteTests: XCTestCase {
 	func testCreate2() {
 		do {
 			let db = try getTestDB()
-			try db.create(TestTable1.self, policy: .dropTable)
+			try db.create(TestTable1.self, primaryKey: \.id, policy: .dropTable)
 			do {
 				let t2 = db.table(TestTable2.self)
-				try t2.index(\TestTable2.parentId)
+				try t2.index(\.parentId, \.date)
 			}
 			let t1 = db.table(TestTable1.self)
 			do {
-				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+				let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 				try t1.insert(newOne)
 			}
 			let j2 = try t1.where(\TestTable1.id == .integer(2000)).select()
@@ -322,7 +351,7 @@ class PerfectSQLiteTests: XCTestCase {
 			
 			do {
 				let t1 = db.table(TestTable1.self)
-				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+				let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 				try t1.insert(newOne)
 			}
 			do {
@@ -358,7 +387,7 @@ class PerfectSQLiteTests: XCTestCase {
 			XCTAssert(try j1.count() > 0)
 			let j2 = t1.where(\TestTable1.blob != .null)
 			XCTAssert(try j2.count() > 0)
-			SwORMLogging.flush()
+			CRUDLogging.flush()
 		} catch {
 			print("\(error)")
 		}
@@ -367,7 +396,7 @@ class PerfectSQLiteTests: XCTestCase {
 	// this is the general-overview example used in the readme
 	func testPersonThing() {
 		do {
-			// SwORM can work with most Codable types.
+			// CRUD can work with most Codable types.
 			struct PhoneNumber: Codable {
 				let id: UUID
 				let personId: UUID
@@ -380,7 +409,7 @@ class PerfectSQLiteTests: XCTestCase {
 				let lastName: String
 				let phoneNumbers: [PhoneNumber]?
 			}
-			// SwORM usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library.
+			// CRUD usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library.
 			// Create a `Database` object by providing a configuration. These examples will use SQLite for demonstration purposes.
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
 			// Create the table if it hasn't been done already.
@@ -390,7 +419,7 @@ class PerfectSQLiteTests: XCTestCase {
 			let personTable = db.table(Person.self)
 			let numbersTable = db.table(PhoneNumber.self)
 			// Add an index for personId, if it does not already exist.
-			try numbersTable.index(\PhoneNumber.personId)
+			try numbersTable.index(\.personId)
 			do {
 				// Insert some sample data.
 				let personId1 = UUID()
@@ -406,9 +435,9 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			// Let's find all people with the last name of Lars which have a phone number on planet 12.
 			let query = try personTable
-					.order(by: \Person.lastName)
+					.order(by: \.lastName, \.firstName)
 				.join(\.phoneNumbers, on: \.id, equals: \.personId)
-					.order(by: \PhoneNumber.planetCode)
+					.order(descending: \.planetCode)
 				.where(\Person.lastName == .string("Lars") && \PhoneNumber.planetCode == .integer(12))
 				.select()
 			// Loop through them and print the names.
@@ -422,7 +451,7 @@ class PerfectSQLiteTests: XCTestCase {
 					print(number.number)
 				}
 			}
-			SwORMLogging.flush()
+			CRUDLogging.flush()
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
