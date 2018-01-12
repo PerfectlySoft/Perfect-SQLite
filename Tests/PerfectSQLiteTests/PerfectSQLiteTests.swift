@@ -457,6 +457,39 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
+	func testPivotJoin() {
+		struct Parent: Codable {
+			let id: Int
+			let children: [Child]?
+		}
+		struct Child: Codable {
+			let id: Int
+		}
+		struct Pivot: Codable {
+			let parentId: Int
+			let childId: Int
+		}
+		do {
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			try db.create(Parent.self)
+			try db.create(Child.self)
+			try db.create(Pivot.self)
+			
+			try db.table(Parent.self).insert(Parent(id: 1, children: nil))
+			try db.table(Child.self).insert([Child(id: 1), Child(id: 2), Child(id: 3)])
+			try db.table(Pivot.self).insert([Pivot(parentId: 1, childId: 1), Pivot(parentId: 1, childId: 2), Pivot(parentId: 1, childId: 3)])
+			
+			let join = try db.table(Parent.self).join(\.children, with: Pivot.self, on: \.id, equals: \.parentId, and: \.id, is: \.childId)
+			guard let parent = try join.select().map({ $0 }).first else {
+				return XCTAssert(false)
+			}
+			XCTAssert(parent.children?.count == 3)
+			CRUDLogging.flush()
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
 	static var allTests = [
 		("testCreate1", testCreate1),
 		("testCreate2", testCreate2),
@@ -469,7 +502,9 @@ class PerfectSQLiteTests: XCTestCase {
 		("testUpdate", testUpdate),
 		("testDelete", testDelete),
 		("testSelectLimit", testSelectLimit),
-		("testSelectWhereNULL", testSelectWhereNULL)
+		("testSelectWhereNULL", testSelectWhereNULL),
+		("testPersonThing", testPersonThing),
+		("testPivotJoin", testPivotJoin)
 	]
 }
 
