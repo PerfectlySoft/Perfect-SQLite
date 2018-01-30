@@ -116,7 +116,7 @@ Finally, we retrieve posts and post titles from an SQLite database full of blog 
 
 ``` swift
 let dbPath = "./db/database"
-Var contentDict = [String: Any]()
+var contentDict = [String: Any]()
 
 do {
 	let sqlite = try SQLite(dbPath)
