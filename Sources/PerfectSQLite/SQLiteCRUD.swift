@@ -8,10 +8,10 @@ import Foundation
 import PerfectCRUD
 import PerfectCSQLite3
 
-struct SQLiteCRUDError: Error {
-	let msg: String
+public struct SQLiteCRUDError: Error, CustomStringConvertible {
+	public let description: String
 	init(_ m: String) {
-		msg = m
+		description = m
 		CRUDLogging.log(.error, m)
 	}
 }
@@ -363,17 +363,17 @@ class SQLiteExeDelegate: SQLExeDelegate {
 	}
 }
 
-struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
-	var sqlGenDelegate: SQLGenDelegate {
+public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
+	public var sqlGenDelegate: SQLGenDelegate {
 		return SQLiteGenDelegate(sqlite)
 	}
-	func sqlExeDelegate(forSQL sql: String) throws -> SQLExeDelegate {
+	public func sqlExeDelegate(forSQL sql: String) throws -> SQLExeDelegate {
 		let prep = try sqlite.prepare(statement: sql)
 		return SQLiteExeDelegate(sqlite, stat: prep)
 	}
 	let name: String
 	let sqlite: SQLite
-	init(_ n: String) throws {
+	public init(_ n: String) throws {
 		name = n
 		sqlite = try SQLite(n)
 	}

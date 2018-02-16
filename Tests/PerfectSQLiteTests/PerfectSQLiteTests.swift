@@ -94,8 +94,8 @@ class PerfectSQLiteTests: XCTestCase {
 				let t2 = db.table(TestTable2.self)
 				try t2.insert([newSub1, newSub2])
 			}
-			let j2 = try t1.join(\.subTables, on: \.id, equals: \.parentId)
-				.where(\TestTable1.id == .integer(2000) && \TestTable2.name == .string("Me"))
+			let j21 = try t1.join(\.subTables, on: \.id, equals: \.parentId)
+			let j2 = j21.where(\TestTable1.id == 2000 && \TestTable2.name == "Me")
 			try db.transaction {
 				let j2a = try j2.select().map { $0 }
 				XCTAssert(try j2.count() == 1)
@@ -191,7 +191,7 @@ class PerfectSQLiteTests: XCTestCase {
 				.order(by: \TestTable1.name)
 				.join(\.subTables, on: \.id, equals: \.parentId)
 				.order(by: \.id)
-				.where(\TestTable2.name == .string("Me"))
+				.where(\TestTable2.name == "Me")
 			
 			let j2c = try j2.count()
 			let j2a = try j2.select().map{$0}
@@ -212,7 +212,7 @@ class PerfectSQLiteTests: XCTestCase {
 			let t1 = db.table(TestTable1.self)
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 			try t1.insert(newOne)
-			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
+			let j1 = t1.where(\TestTable1.id == newOne.id)
 			let j2 = try j1.select().map {$0}
 			XCTAssert(try j1.count() == 1)
 			XCTAssert(j2[0].id == 2000)
@@ -227,7 +227,7 @@ class PerfectSQLiteTests: XCTestCase {
 			let t1 = db.table(TestTable1.self)
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 			try t1.insert(newOne, ignoreKeys: \TestTable1.integer)
-			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
+			let j1 = t1.where(\TestTable1.id == newOne.id)
 			let j2 = try j1.select().map {$0}
 			XCTAssert(try j1.count() == 1)
 			XCTAssert(j2[0].id == 2000)
@@ -244,7 +244,7 @@ class PerfectSQLiteTests: XCTestCase {
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 			let newTwo = TestTable1(id: 2001, name: "New One", integer: 40)
 			try t1.insert([newOne, newTwo], setKeys: \TestTable1.id, \TestTable1.integer)
-			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
+			let j1 = t1.where(\TestTable1.id == newOne.id)
 			let j2 = try j1.select().map {$0}
 			XCTAssert(try j1.count() == 1)
 			XCTAssert(j2[0].id == 2000)
@@ -264,12 +264,12 @@ class PerfectSQLiteTests: XCTestCase {
 				try db.table(TestTable1.self).insert(newOne)
 				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41)
 				try db.table(TestTable1.self)
-					.where(\TestTable1.id == .integer(newOne.id))
+					.where(\TestTable1.id == newOne.id)
 					.update(newOne2, setKeys: \.name)
 				return newOne2.id
 			}
 			let j2 = try db.table(TestTable1.self)
-				.where(\TestTable1.id == .integer(newId))
+				.where(\TestTable1.id == newId)
 				.select().map { $0 }
 			XCTAssert(j2.count == 1)
 			XCTAssert(j2[0].id == 2000)
@@ -286,7 +286,7 @@ class PerfectSQLiteTests: XCTestCase {
 			let t1 = db.table(TestTable1.self)
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 			try t1.insert(newOne)
-			let query = t1.where(\TestTable1.id == .integer(newOne.id))
+			let query = t1.where(\TestTable1.id == newOne.id)
 			let j1 = try query.select().map { $0 }
 			XCTAssert(j1.count == 1)
 			try query.delete()
@@ -310,7 +310,7 @@ class PerfectSQLiteTests: XCTestCase {
 				let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 				try t1.insert(newOne)
 			}
-			let j2 = try t1.where(\TestTable1.id == .integer(2000)).select()
+			let j2 = try t1.where(\TestTable1.id == 2000).select()
 			do {
 				let j2a = j2.map { $0 }
 				XCTAssert(j2a.count == 1)
@@ -357,7 +357,7 @@ class PerfectSQLiteTests: XCTestCase {
 			do {
 				try db.create(FakeTestTable1.self, policy: [.reconcileTable, .shallow])
 				let t1 = db.table(FakeTestTable1.self)
-				let j2 = try t1.where(\FakeTestTable1.id == .integer(2000)).select()
+				let j2 = try t1.where(\FakeTestTable1.id == 2000).select()
 				do {
 					let j2a = j2.map { $0 }
 					XCTAssert(j2a.count == 1)
@@ -383,9 +383,9 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let t1 = db.table(TestTable1.self)
-			let j1 = t1.where(\TestTable1.blob == .null)
+			let j1 = t1.where(\TestTable1.blob == nil)
 			XCTAssert(try j1.count() > 0)
-			let j2 = t1.where(\TestTable1.blob != .null)
+			let j2 = t1.where(\TestTable1.blob != nil)
 			XCTAssert(try j2.count() > 0)
 			CRUDLogging.flush()
 		} catch {
@@ -438,7 +438,7 @@ class PerfectSQLiteTests: XCTestCase {
 					.order(by: \.lastName, \.firstName)
 				.join(\.phoneNumbers, on: \.id, equals: \.personId)
 					.order(descending: \.planetCode)
-				.where(\Person.lastName == .string("Lars") && \PhoneNumber.planetCode == .integer(12))
+				.where(\Person.lastName == "Lars" && \PhoneNumber.planetCode == 12)
 				.select()
 			// Loop through them and print the names.
 			for user in query {
