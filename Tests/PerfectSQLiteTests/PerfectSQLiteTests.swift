@@ -96,31 +96,35 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			let j21 = try t1.join(\.subTables, on: \.id, equals: \.parentId)
 			let j2 = j21.where(\TestTable1.id == 2000 && \TestTable2.name == "Me")
+			
+			let j3 = j21.where(\TestTable1.id > 20 &&
+							!(\TestTable1.name == "Me" || \TestTable1.name == "You"))
+			XCTAssertEqual(try j3.count(), 1)
 			try db.transaction {
 				let j2a = try j2.select().map { $0 }
-				XCTAssert(try j2.count() == 1)
-				XCTAssert(j2a.count == 1)
+				XCTAssertEqual(try j2.count(), 1)
+				XCTAssertEqual(j2a.count, 1)
 				guard j2a.count == 1 else {
 					return
 				}
 				let obj = j2a[0]
-				XCTAssert(obj.id == 2000)
+				XCTAssertEqual(obj.id, 2000)
 				XCTAssertNotNil(obj.subTables)
 				let subTables = obj.subTables!
-				XCTAssert(subTables.count == 1)
+				XCTAssertEqual(subTables.count, 1)
 				let obj2 = subTables[0]
-				XCTAssert(obj2.id == subId)
+				XCTAssertEqual(obj2.id, subId)
 			}
 			try db.create(TestTable1.self)
 			do {
 				let j2a = try j2.select().map { $0 }
-				XCTAssert(try j2.count() == 1)
-				XCTAssert(j2a[0].id == 2000)
+				XCTAssertEqual(try j2.count(), 1)
+				XCTAssertEqual(j2a[0].id, 2000)
 			}
 			try db.create(TestTable1.self, policy: .dropTable)
 			do {
 				let j2b = try j2.select().map { $0 }
-				XCTAssert(j2b.count == 0)
+				XCTAssertEqual(j2b.count, 0)
 			}
 		} catch {
 			XCTAssert(false, "\(error)")
@@ -179,6 +183,33 @@ class PerfectSQLiteTests: XCTestCase {
 			for row in j2 {
 				XCTAssertNil(row.subTables)
 			}
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testSelectIn() {
+		do {
+			let db = try getTestDB()
+			let j2 = try db.table(TestTable1.self)
+				.where(\TestTable1.id ~ [2, 4])
+				.count()
+			XCTAssertEqual(j2, 2)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testSelectLikeString() {
+		do {
+			let db = try getTestDB()
+			let table = db.table(TestTable2.self)
+			XCTAssertEqual(25, try table.where(\TestTable2.name %=% "Me").count())
+			XCTAssertEqual(15, try table.where(\TestTable2.name =% "Me").count())
+			XCTAssertEqual(15, try table.where(\TestTable2.name %= "Me").count())
+			XCTAssertEqual( 0, try table.where(\TestTable2.name %!=% "Me").count())
+			XCTAssertEqual(10, try table.where(\TestTable2.name !=% "Me").count())
+			XCTAssertEqual(10, try table.where(\TestTable2.name %!= "Me").count())
 		} catch {
 			XCTAssert(false, "\(error)")
 		}

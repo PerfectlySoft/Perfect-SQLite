@@ -319,9 +319,11 @@ class SQLiteExeDelegate: SQLExeDelegate {
 	}
 	func bind(_ binds: Bindings, skip: Int) throws {
 		_ = try statement.reset()
-		for i in skip..<binds.count {
-			let (_, expr) = binds[i]
-			try bindOne(statement, position: i+1, expr: expr)
+		var i = skip + 1
+		try binds[skip...].forEach {
+			let (_, expr) = $0
+			try bindOne(statement, position: i, expr: expr)
+			i += 1
 		}
 	}
 	func hasNext() throws -> Bool {
@@ -357,7 +359,8 @@ class SQLiteExeDelegate: SQLExeDelegate {
 		case .column(_), .and(_, _), .or(_, _),
 			 .equality(_, _), .inequality(_, _),
 			 .not(_), .lessThan(_, _), .lessThanEqual(_, _),
-			 .greaterThan(_, _), .greaterThanEqual(_, _), .keyPath(_):
+			 .greaterThan(_, _), .greaterThanEqual(_, _),
+			 .keyPath(_), .in(_, _), .like(_, _, _, _):
 			throw SQLiteCRUDError("Asked to bind unsupported expression type: \(expr)")
 		}
 	}
