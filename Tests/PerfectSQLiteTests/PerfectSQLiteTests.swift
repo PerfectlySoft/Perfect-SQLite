@@ -84,9 +84,9 @@ struct TestTable2: Codable {
 }
 
 class PerfectSQLiteTests: XCTestCase {
+// copy + paste from here into other CRUD driver projects 
 	override func setUp() {
 		super.setUp()
-		
 	}
 	override func tearDown() {
 		CRUDLogging.flush()
