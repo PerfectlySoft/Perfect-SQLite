@@ -1,14 +1,36 @@
 //
 //  SQLiteTests.swift
-//  Perfect-SQLite
+//  PerfectSQLite
 //
 //  Created by Kyle Jessup on 2016-04-09.
 //  Copyright © 2016 PerfectlySoft. All rights reserved.
 //
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Perfect.org open source project
+//
+// Copyright (c) 2015 - 2016 PerfectlySoft Inc. and the Perfect project authors
+// Licensed under Apache License v2.0
+//
+// See http://perfect.org/licensing.html for license information
+//
+//===----------------------------------------------------------------------===//
+//
 
+import Foundation
 import XCTest
 import PerfectCRUD
 @testable import PerfectSQLite
+
+let testDBRowCount = 5
+let testDBName = "/tmp/crud_test.db"
+typealias DBConfiguration = SQLiteDatabaseConfiguration
+func getDB(reset: Bool = true) throws -> Database<DBConfiguration> {
+	if reset {
+		unlink(testDBName)
+	}
+	return Database(configuration: try DBConfiguration(testDBName))
+}
 
 struct TestTable1: Codable, TableNameProvider {
 	enum CodingKeys: String, CodingKey {
@@ -21,7 +43,6 @@ struct TestTable1: Codable, TableNameProvider {
 	let double: Double?
 	let blob: [UInt8]?
 	let subTables: [TestTable2]?
-	
 	init(id: Int,
 		 name: String? = nil,
 		 integer: Int? = nil,
@@ -45,7 +66,6 @@ struct TestTable2: Codable {
 	let int: Int?
 	let doub: Double?
 	let blob: [UInt8]?
-	
 	init(id: UUID,
 		 parentId: Int,
 		 date: Date,
@@ -63,13 +83,10 @@ struct TestTable2: Codable {
 	}
 }
 
-let testDBRowCount = 5
-
 class PerfectSQLiteTests: XCTestCase {
-	let testDBName = "/tmp/crud_test.db"
 	override func setUp() {
 		super.setUp()
-		unlink(testDBName)
+		
 	}
 	override func tearDown() {
 		CRUDLogging.flush()
@@ -78,7 +95,7 @@ class PerfectSQLiteTests: XCTestCase {
 	
 	func testCreate1() {
 		do {
-			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			let db = try getDB()
 			try db.create(TestTable1.self, policy: .dropTable)
 			do {
 				let t2 = db.table(TestTable2.self)
@@ -96,7 +113,6 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			let j21 = try t1.join(\.subTables, on: \.id, equals: \.parentId)
 			let j2 = j21.where(\TestTable1.id == 2000 && \TestTable2.name == "Me")
-			
 			let j3 = j21.where(\TestTable1.id > 20 &&
 							!(\TestTable1.name == "Me" || \TestTable1.name == "You"))
 			XCTAssertEqual(try j3.count(), 1)
@@ -131,9 +147,9 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
-	func getTestDB() throws -> Database<SQLiteDatabaseConfiguration> {
+	func getTestDB() throws -> Database<DBConfiguration> {
 		do {
-			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			let db = try getDB()
 			try db.create(TestTable1.self, policy: .dropTable)
 			try db.transaction {
 				() -> () in
@@ -161,7 +177,7 @@ class PerfectSQLiteTests: XCTestCase {
 						return TestTable2(id: UUID(),
 										  parentId: parentId,
 										  date: Date(),
-										  name: num % 2 == 0 ? "This is name bind \(num)" : "Me",
+										  name: num % 2 == 0 ? "This is name bind \(num)" : "me",
 										  int: num,
 										  doub: Double(num),
 										  blob: blob)
@@ -171,7 +187,7 @@ class PerfectSQLiteTests: XCTestCase {
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
-		return Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+		return try getDB(reset: false)
 	}
 	
 	func testSelectAll() {
@@ -204,12 +220,12 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let table = db.table(TestTable2.self)
-			XCTAssertEqual(25, try table.where(\TestTable2.name %=% "Me").count())
-			XCTAssertEqual(15, try table.where(\TestTable2.name =% "Me").count())
-			XCTAssertEqual(15, try table.where(\TestTable2.name %= "Me").count())
-			XCTAssertEqual( 0, try table.where(\TestTable2.name %!=% "Me").count())
-			XCTAssertEqual(10, try table.where(\TestTable2.name !=% "Me").count())
-			XCTAssertEqual(10, try table.where(\TestTable2.name %!= "Me").count())
+			XCTAssertEqual(25, try table.where(\TestTable2.name %=% "me").count())
+			XCTAssertEqual(15, try table.where(\TestTable2.name =% "me").count())
+			XCTAssertEqual(15, try table.where(\TestTable2.name %= "me").count())
+			XCTAssertEqual( 0, try table.where(\TestTable2.name %!=% "me").count())
+			XCTAssertEqual(10, try table.where(\TestTable2.name !=% "me").count())
+			XCTAssertEqual(10, try table.where(\TestTable2.name %!= "me").count())
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
@@ -222,7 +238,7 @@ class PerfectSQLiteTests: XCTestCase {
 				.order(by: \TestTable1.name)
 				.join(\.subTables, on: \.id, equals: \.parentId)
 				.order(by: \.id)
-				.where(\TestTable2.name == "Me")
+				.where(\TestTable2.name == "me")
 			
 			let j2c = try j2.count()
 			let j2a = try j2.select().map{$0}
@@ -290,8 +306,7 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
-			let newId = try db.transaction {
-				() -> Int in
+			let newId: Int = try db.transaction {
 				try db.table(TestTable1.self).insert(newOne)
 				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41)
 				try db.table(TestTable1.self)
@@ -501,10 +516,10 @@ class PerfectSQLiteTests: XCTestCase {
 			let childId: Int
 		}
 		do {
-			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
-			try db.create(Parent.self)
-			try db.create(Child.self)
-			try db.create(Pivot.self)
+			let db = try getTestDB()
+			try db.create(Parent.self).delete()
+			try db.create(Child.self).delete()
+			try db.create(Pivot.self).delete()
 			
 			try db.table(Parent.self).insert(Parent(id: 1, children: nil))
 			try db.table(Child.self).insert([Child(id: 1), Child(id: 2), Child(id: 3)])
