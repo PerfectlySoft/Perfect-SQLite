@@ -457,7 +457,7 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			// CRUD usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library.
 			// Create a `Database` object by providing a configuration. These examples will use SQLite for demonstration purposes.
-			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			let db = try getTestDB()
 			// Create the table if it hasn't been done already.
 			// Table creates are recursive by default, so "PhoneNumber" is also created here.
 			try db.create(Person.self, policy: .reconcileTable)
