@@ -84,7 +84,7 @@ struct TestTable2: Codable {
 }
 
 class PerfectSQLiteTests: XCTestCase {
-// copy + paste from here into other CRUD driver projects 
+// copy + paste from here into other CRUD driver projects
 	override func setUp() {
 		super.setUp()
 	}
@@ -279,10 +279,9 @@ class PerfectSQLiteTests: XCTestCase {
 	func testSelectIn() {
 		do {
 			let db = try getTestDB()
-			let j2 = try db.table(TestTable1.self)
-				.where(\TestTable1.id ~ [2, 4])
-				.count()
-			XCTAssertEqual(j2, 2)
+			let table = db.table(TestTable1.self)
+			XCTAssertEqual(2, try table.where(\TestTable1.id ~ [2, 4]).count())
+			XCTAssertEqual(3, try table.where(\TestTable1.id !~ [2, 4]).count())
 		} catch {
 			XCTAssert(false, "\(error)")
 		}

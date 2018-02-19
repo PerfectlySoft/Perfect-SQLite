@@ -113,16 +113,16 @@ class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplimented")
+		throw CRUDDecoderError("Unimplimented nestedContainer")
 	}
 	func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplimented")
+		throw CRUDDecoderError("Unimplimented nestedUnkeyedContainer")
 	}
 	func superDecoder() throws -> Decoder {
-		fatalError("Unimplimented")
+		throw CRUDDecoderError("Unimplimented superDecoder")
 	}
 	func superDecoder(forKey key: Key) throws -> Decoder {
-		fatalError("Unimplimented")
+		throw CRUDDecoderError("Unimplimented superDecoder")
 	}
 }
 
