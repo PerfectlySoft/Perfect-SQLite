@@ -143,7 +143,7 @@ class PerfectSQLiteTests: XCTestCase {
 				XCTAssertEqual(j2b.count, 0)
 			}
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -163,22 +163,22 @@ class PerfectSQLiteTests: XCTestCase {
 			let j2 = try t1.where(\TestTable1.id == 2000).select()
 			do {
 				let j2a = j2.map { $0 }
-				XCTAssert(j2a.count == 1)
-				XCTAssert(j2a[0].id == 2000)
+				XCTAssertEqual(j2a.count, 1)
+				XCTAssertEqual(j2a[0].id, 2000)
 			}
 			try db.create(TestTable1.self)
 			do {
 				let j2a = j2.map { $0 }
-				XCTAssert(j2a.count == 1)
-				XCTAssert(j2a[0].id == 2000)
+				XCTAssertEqual(j2a.count, 1)
+				XCTAssertEqual(j2a[0].id, 2000)
 			}
 			try db.create(TestTable1.self, policy: .dropTable)
 			do {
 				let j2b = j2.map { $0 }
-				XCTAssert(j2b.count == 0)
+				XCTAssertEqual(j2b.count, 0)
 			}
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -210,12 +210,12 @@ class PerfectSQLiteTests: XCTestCase {
 				let j2 = try t1.where(\FakeTestTable1.id == 2000).select()
 				do {
 					let j2a = j2.map { $0 }
-					XCTAssert(j2a.count == 1)
-					XCTAssert(j2a[0].id == 2000)
+					XCTAssertEqual(j2a.count, 1)
+					XCTAssertEqual(j2a[0].id, 2000)
 				}
 			}
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -257,7 +257,7 @@ class PerfectSQLiteTests: XCTestCase {
 					})
 			}
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 		return try getDB(reset: false)
 	}
@@ -270,7 +270,7 @@ class PerfectSQLiteTests: XCTestCase {
 				XCTAssertNil(row.subTables)
 			}
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -281,7 +281,7 @@ class PerfectSQLiteTests: XCTestCase {
 			XCTAssertEqual(2, try table.where(\TestTable1.id ~ [2, 4]).count())
 			XCTAssertEqual(3, try table.where(\TestTable1.id !~ [2, 4]).count())
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -296,7 +296,7 @@ class PerfectSQLiteTests: XCTestCase {
 			XCTAssertEqual(10, try table.where(\TestTable2.name !=% "me").count())
 			XCTAssertEqual(10, try table.where(\TestTable2.name %!= "me").count())
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -312,13 +312,13 @@ class PerfectSQLiteTests: XCTestCase {
 			let j2c = try j2.count()
 			let j2a = try j2.select().map{$0}
 			let j2ac = j2a.count
-			XCTAssert(j2c != 0)
-			XCTAssert(j2c == j2ac)
+			XCTAssertNotEqual(j2c, 0)
+			XCTAssertEqual(j2c, j2ac)
 			j2a.forEach { row in
 				XCTAssertFalse(row.subTables?.isEmpty ?? true)
 			}
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -330,10 +330,10 @@ class PerfectSQLiteTests: XCTestCase {
 			try t1.insert(newOne)
 			let j1 = t1.where(\TestTable1.id == newOne.id)
 			let j2 = try j1.select().map {$0}
-			XCTAssert(try j1.count() == 1)
-			XCTAssert(j2[0].id == 2000)
+			XCTAssertEqual(try j1.count(), 1)
+			XCTAssertEqual(j2[0].id, 2000)
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -345,11 +345,11 @@ class PerfectSQLiteTests: XCTestCase {
 			try t1.insert(newOne, ignoreKeys: \TestTable1.integer)
 			let j1 = t1.where(\TestTable1.id == newOne.id)
 			let j2 = try j1.select().map {$0}
-			XCTAssert(try j1.count() == 1)
-			XCTAssert(j2[0].id == 2000)
+			XCTAssertEqual(try j1.count(), 1)
+			XCTAssertEqual(j2[0].id, 2000)
 			XCTAssertNil(j2[0].integer)
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -362,12 +362,12 @@ class PerfectSQLiteTests: XCTestCase {
 			try t1.insert([newOne, newTwo], setKeys: \TestTable1.id, \TestTable1.integer)
 			let j1 = t1.where(\TestTable1.id == newOne.id)
 			let j2 = try j1.select().map {$0}
-			XCTAssert(try j1.count() == 1)
-			XCTAssert(j2[0].id == 2000)
-			XCTAssert(j2[0].integer == 40)
+			XCTAssertEqual(try j1.count(), 1)
+			XCTAssertEqual(j2[0].id, 2000)
+			XCTAssertEqual(j2[0].integer, 40)
 			XCTAssertNil(j2[0].name)
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -403,10 +403,10 @@ class PerfectSQLiteTests: XCTestCase {
 			try t1.insert(newOne)
 			let query = t1.where(\TestTable1.id == newOne.id)
 			let j1 = try query.select().map { $0 }
-			XCTAssert(j1.count == 1)
+			XCTAssertEqual(j1.count, 1)
 			try query.delete()
 			let j2 = try query.select().map { $0 }
-			XCTAssert(j2.count == 0)
+			XCTAssertEqual(j2.count, 0)
 		} catch {
 			XCTFail("\(error)")
 		}
@@ -416,7 +416,7 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getTestDB()
 			let j2 = db.table(TestTable1.self).limit(3, skip: 2)
-			XCTAssert(try j2.count() == 3)
+			XCTAssertEqual(try j2.count(), 3)
 		} catch {
 			XCTFail("\(error)")
 		}
