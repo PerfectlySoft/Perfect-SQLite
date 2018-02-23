@@ -715,6 +715,7 @@ class PerfectSQLiteTests: XCTestCase {
 		("testSelectLimit", testSelectLimit),
 		("testSelectWhereNULL", testSelectWhereNULL),
 		("testPersonThing", testPersonThing),
+		("testStandardJoin", testStandardJoin),
 		("testJunctionJoin", testJunctionJoin),
 		("testSelfJoin", testSelfJoin),
 		("testSelfJunctionJoin", testSelfJunctionJoin)
