@@ -223,39 +223,38 @@ class PerfectSQLiteTests: XCTestCase {
 		do {
 			let db = try getDB()
 			try db.create(TestTable1.self, policy: .dropTable)
-//			try db.create(TestTable2.self, policy: .dropTable)
 			try db.transaction {
 				() -> () in
 				try db.table(TestTable1.self)
 					.insert((1...testDBRowCount).map {
-					num -> TestTable1 in
-					let n = UInt8(num)
-					let blob: [UInt8]? = (num % 2 != 0) ? nil : [UInt8](arrayLiteral: n+1, n+2, n+3, n+4, n+5)
-					return TestTable1(id: num,
-									  name: "This is name bind \(num)",
-										integer: num,
-										double: Double(num),
-										blob: blob)
-				})
+						num -> TestTable1 in
+						let n = UInt8(num)
+						let blob: [UInt8]? = (num % 2 != 0) ? nil : [UInt8](arrayLiteral: n+1, n+2, n+3, n+4, n+5)
+						return TestTable1(id: num,
+							name: "This is name bind \(num)",
+							integer: num,
+							double: Double(num),
+							blob: blob)
+					})
 			}
 			try db.transaction {
 				() -> () in
 				try db.table(TestTable2.self)
 					.insert((1...testDBRowCount).flatMap {
-					parentId -> [TestTable2] in
-					return (1...testDBRowCount).map {
-						num -> TestTable2 in
-						let n = UInt8(num)
-						let blob: [UInt8]? = [UInt8](arrayLiteral: n+1, n+2, n+3, n+4, n+5)
-						return TestTable2(id: UUID(),
-										  parentId: parentId,
-										  date: Date(),
-										  name: num % 2 == 0 ? "This is name bind \(num)" : "me",
-										  int: num,
-										  doub: Double(num),
-										  blob: blob)
-					}
-				})
+						parentId -> [TestTable2] in
+						return (1...testDBRowCount).map {
+							num -> TestTable2 in
+							let n = UInt8(num)
+							let blob: [UInt8]? = [UInt8](arrayLiteral: n+1, n+2, n+3, n+4, n+5)
+							return TestTable2(id: UUID(),
+											  parentId: parentId,
+											  date: Date(),
+											  name: num % 2 == 0 ? "This is name bind \(num)" : "me",
+											  int: num,
+											  doub: Double(num),
+											  blob: blob)
+						}
+					})
 			}
 		} catch {
 			XCTAssert(false, "\(error)")
@@ -409,7 +408,7 @@ class PerfectSQLiteTests: XCTestCase {
 			let j2 = try query.select().map { $0 }
 			XCTAssert(j2.count == 0)
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -419,7 +418,7 @@ class PerfectSQLiteTests: XCTestCase {
 			let j2 = db.table(TestTable1.self).limit(3, skip: 2)
 			XCTAssert(try j2.count() == 3)
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -433,7 +432,7 @@ class PerfectSQLiteTests: XCTestCase {
 			XCTAssert(try j2.count() > 0)
 			CRUDLogging.flush()
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -475,7 +474,7 @@ class PerfectSQLiteTests: XCTestCase {
 					PhoneNumber(id: UUID(), personId: personId1, planetCode: 12, number: "555-555-1212"),
 					PhoneNumber(id: UUID(), personId: personId1, planetCode: 15, number: "555-555-2222"),
 					PhoneNumber(id: UUID(), personId: personId2, planetCode: 12, number: "555-555-1212")
-				])
+					])
 			}
 			// Let's find all people with the last name of Lars which have a phone number on planet 12.
 			let query = try personTable
@@ -496,7 +495,7 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			CRUDLogging.flush()
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -541,7 +540,7 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			CRUDLogging.flush()
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -615,7 +614,7 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			CRUDLogging.flush()
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -653,7 +652,7 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			XCTAssertEqual(mes.count, 4)
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
@@ -695,7 +694,7 @@ class PerfectSQLiteTests: XCTestCase {
 			}
 			XCTAssertEqual(us.count, 4)
 		} catch {
-			XCTAssert(false, "\(error)")
+			XCTFail("\(error)")
 		}
 	}
 	
