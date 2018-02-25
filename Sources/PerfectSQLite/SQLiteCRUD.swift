@@ -110,6 +110,11 @@ class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				throw CRUDDecoderError("Invalid Date string \(str).")
 			}
 			return date as! T
+		case .codable:
+			guard let data = statement.columnText(position: columnPosition(key)).data(using: .utf8) else {
+				throw CRUDDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
+			}
+			return try JSONDecoder().decode(type, from: data)
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
@@ -277,6 +282,8 @@ class SQLiteGenDelegate: SQLGenDelegate {
 			case .uuid:
 				typeName = "TEXT"
 			case .date:
+				typeName = "TEXT"
+			case .codable:
 				typeName = "TEXT"
 			}
 		}
