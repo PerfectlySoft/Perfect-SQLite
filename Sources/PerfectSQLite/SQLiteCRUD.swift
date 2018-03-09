@@ -16,7 +16,7 @@ public struct SQLiteCRUDError: Error, CustomStringConvertible {
 	}
 }
 
-// maps column name to position which must be computer once before row reading action
+// maps column name to position which must be computed once before row reading action
 typealias SQLiteCRUDColumnMap = [String:Int]
 
 class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
@@ -306,7 +306,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 	}
 }
 
-// maps column name to position which must be computer once before row reading action
+// maps column name to position which must be computed once before row reading action
 typealias SQLiteColumnMap = [String:Int]
 
 class SQLiteExeDelegate: SQLExeDelegate {
@@ -329,7 +329,7 @@ class SQLiteExeDelegate: SQLExeDelegate {
 		var i = skip + 1
 		try binds[skip...].forEach {
 			let (_, expr) = $0
-			try bindOne(statement, position: i, expr: expr)
+			try bindOne(position: i, expr: expr)
 			i += 1
 		}
 	}
@@ -343,26 +343,26 @@ class SQLiteExeDelegate: SQLExeDelegate {
 	func next<A>() -> KeyedDecodingContainer<A>? where A : CodingKey {
 		return KeyedDecodingContainer(SQLiteCRUDRowReader<A>(database, stat: statement, columns: columnMap))
 	}
-	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: CRUDExpression) throws {
+	private func bindOne(position: Int, expr: CRUDExpression) throws {
 		switch expr {
 		case .lazy(let e):
-			try bindOne(stat, position: position, expr: e())
+			try bindOne(position: position, expr: e())
 		case .integer(let i):
-			try stat.bind(position: position, i)
+			try statement.bind(position: position, i)
 		case .decimal(let d):
-			try stat.bind(position: position, d)
+			try statement.bind(position: position, d)
 		case .string(let s):
-			try stat.bind(position: position, s)
+			try statement.bind(position: position, s)
 		case .blob(let b):
-			try stat.bind(position: position, b)
+			try statement.bind(position: position, b)
 		case .bool(let b):
-			try stat.bind(position: position, b ? 1 : 0)
+			try statement.bind(position: position, b ? 1 : 0)
 		case .null:
-			try stat.bindNull(position: position)
+			try statement.bindNull(position: position)
 		case .date(let d):
-			try stat.bind(position: position, d.iso8601())
+			try statement.bind(position: position, d.iso8601())
 		case .uuid(let u):
-			try stat.bind(position: position, u.uuidString)
+			try statement.bind(position: position, u.uuidString)
 		case .column(_), .and(_, _), .or(_, _),
 			 .equality(_, _), .inequality(_, _),
 			 .not(_), .lessThan(_, _), .lessThanEqual(_, _),
