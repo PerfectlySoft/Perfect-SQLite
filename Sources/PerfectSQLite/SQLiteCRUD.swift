@@ -32,59 +32,62 @@ class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		statement = stat
 		columns = cols
 	}
-	func columnPosition(_ key: Key) -> Int {
-		return columns[key.stringValue] ?? -1
+	func columnPosition(_ key: Key) throws -> Int {
+		guard let pos = columns[key.stringValue] else {
+			throw CRUDDecoderError("Unrecognized key: \(key.stringValue)")
+		}
+		return pos
 	}
 	func contains(_ key: Key) -> Bool {
 		return nil != columns[key.stringValue]
 	}
 	func decodeNil(forKey key: Key) throws -> Bool {
-		return statement.isNull(position: columnPosition(key))
+		return statement.isNull(position: try columnPosition(key))
 	}
 	func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
-		return statement.columnInt(position: columnPosition(key)) == 1
+		return statement.columnInt(position: try columnPosition(key)) == 1
 	}
 	func decode(_ type: Int.Type, forKey key: Key) throws -> Int {
-		return statement.columnInt(position: columnPosition(key))
+		return statement.columnInt(position: try columnPosition(key))
 	}
 	func decode(_ type: Int8.Type, forKey key: Key) throws -> Int8 {
-		return type.init(statement.columnInt(position: columnPosition(key)))
+		return type.init(statement.columnInt(position: try columnPosition(key)))
 	}
 	func decode(_ type: Int16.Type, forKey key: Key) throws -> Int16 {
-		return type.init(statement.columnInt(position: columnPosition(key)))
+		return type.init(statement.columnInt(position: try columnPosition(key)))
 	}
 	func decode(_ type: Int32.Type, forKey key: Key) throws -> Int32 {
-		return statement.columnInt32(position: columnPosition(key))
+		return statement.columnInt32(position: try columnPosition(key))
 	}
 	func decode(_ type: Int64.Type, forKey key: Key) throws -> Int64 {
-		return statement.columnInt64(position: columnPosition(key))
+		return statement.columnInt64(position: try columnPosition(key))
 	}
 	func decode(_ type: UInt.Type, forKey key: Key) throws -> UInt {
-		return type.init(statement.columnInt(position: columnPosition(key)))
+		return type.init(statement.columnInt(position: try columnPosition(key)))
 	}
 	func decode(_ type: UInt8.Type, forKey key: Key) throws -> UInt8 {
-		return type.init(statement.columnInt(position: columnPosition(key)))
+		return type.init(statement.columnInt(position: try columnPosition(key)))
 	}
 	func decode(_ type: UInt16.Type, forKey key: Key) throws -> UInt16 {
-		return type.init(statement.columnInt(position: columnPosition(key)))
+		return type.init(statement.columnInt(position: try columnPosition(key)))
 	}
 	func decode(_ type: UInt32.Type, forKey key: Key) throws -> UInt32 {
-		return type.init(statement.columnInt(position: columnPosition(key)))
+		return type.init(statement.columnInt(position: try columnPosition(key)))
 	}
 	func decode(_ type: UInt64.Type, forKey key: Key) throws -> UInt64 {
-		return type.init(statement.columnInt(position: columnPosition(key)))
+		return type.init(statement.columnInt(position: try columnPosition(key)))
 	}
 	func decode(_ type: Float.Type, forKey key: Key) throws -> Float {
-		return type.init(statement.columnDouble(position: columnPosition(key)))
+		return type.init(statement.columnDouble(position: try columnPosition(key)))
 	}
 	func decode(_ type: Double.Type, forKey key: Key) throws -> Double {
-		return statement.columnDouble(position: columnPosition(key))
+		return statement.columnDouble(position: try columnPosition(key))
 	}
 	func decode(_ type: String.Type, forKey key: Key) throws -> String {
-		return statement.columnText(position: columnPosition(key))
+		return statement.columnText(position: try columnPosition(key))
 	}
 	func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
-		let position = columnPosition(key)
+		let position = try columnPosition(key)
 		guard let special = SpecialType(type) else {
 			throw CRUDDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
 		}
@@ -111,7 +114,7 @@ class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			}
 			return date as! T
 		case .codable:
-			guard let data = statement.columnText(position: columnPosition(key)).data(using: .utf8) else {
+			guard let data = statement.columnText(position: position).data(using: .utf8) else {
 				throw CRUDDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
 			}
 			return try JSONDecoder().decode(type, from: data)
