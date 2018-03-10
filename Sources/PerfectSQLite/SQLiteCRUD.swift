@@ -347,8 +347,6 @@ class SQLiteExeDelegate: SQLExeDelegate {
 		switch expr {
 		case .lazy(let e):
 			try bindOne(position: position, expr: e())
-		case .integer(let i):
-			try statement.bind(position: position, i)
 		case .decimal(let d):
 			try statement.bind(position: position, d)
 		case .string(let s):
@@ -369,6 +367,30 @@ class SQLiteExeDelegate: SQLExeDelegate {
 			 .greaterThan(_, _), .greaterThanEqual(_, _),
 			 .keyPath(_), .in(_, _), .like(_, _, _, _):
 			throw SQLiteCRUDError("Asked to bind unsupported expression type: \(expr)")
+		case .integer(let i):
+			try statement.bind(position: position, i)
+		case .uinteger(let i):
+			try statement.bind(position: position, Int(i))
+		case .integer64(let i):
+			try statement.bind(position: position, Int(i))
+		case .uinteger64(let i):
+			try statement.bind(position: position, Int(i))
+		case .integer32(let i):
+			try statement.bind(position: position, Int(i))
+		case .uinteger32(let i):
+			try statement.bind(position: position, Int(i))
+		case .integer16(let i):
+			try statement.bind(position: position, Int(i))
+		case .uinteger16(let i):
+			try statement.bind(position: position, Int(i))
+		case .integer8(let i):
+			try statement.bind(position: position, Int(i))
+		case .uinteger8(let i):
+			try statement.bind(position: position, Int(i))
+		case .float(let d):
+			try statement.bind(position: position, Double(d))
+		case .sblob(let b):
+			try statement.bind(position: position, b.map{UInt8(bitPattern: $0)})
 		}
 	}
 }
