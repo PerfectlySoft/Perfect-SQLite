@@ -204,7 +204,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 					"DROP TABLE \(tempNameQ)"
 				]
 			} else {
-				sub += try addColumns.flatMap { newColumnMap[$0] }.map {
+				sub += try addColumns.compactMap { newColumnMap[$0] }.map {
 					let nameType = try getColumnDefinition($0)
 					return """
 					ALTER TABLE \(try quote(identifier: forTable.tableName)) ADD COLUMN \(nameType)
@@ -411,6 +411,17 @@ public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
 	public init(_ n: String) throws {
 		name = n
 		sqlite = try SQLite(n)
+	}
+	public init(url: String?,
+				name: String?,
+				host: String?,
+				port: Int?,
+				user: String?,
+				pass: String?) throws {
+		guard let n = name else {
+			throw SQLiteCRUDError("Database name must be provided.")
+		}
+		try self.init(n)
 	}
 }
 

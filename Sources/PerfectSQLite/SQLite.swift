@@ -610,3 +610,13 @@ public class SQLiteStmt {
 		finalize()
 	}
 }
+
+#if !swift(>=4.1)
+// Added for Swift 4.0/4.1 compat
+extension Collection {
+	func compactMap<ElementOfResult>(_ transform: (Element) throws -> ElementOfResult?) rethrows -> [ElementOfResult] {
+		return try flatMap(transform)
+	}
+}
+#endif
+
