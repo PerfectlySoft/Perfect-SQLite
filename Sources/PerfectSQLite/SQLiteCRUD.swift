@@ -113,6 +113,12 @@ class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				throw CRUDDecoderError("Invalid Date string \(str).")
 			}
 			return date as! T
+		case .url:
+			let str = statement.columnText(position: position)
+			guard let url = URL(string: str) else {
+				throw CRUDDecoderError("Invalid URL string \(str).")
+			}
+			return url as! T
 		case .codable:
 			guard let data = statement.columnText(position: position).data(using: .utf8) else {
 				throw CRUDDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
@@ -286,6 +292,8 @@ class SQLiteGenDelegate: SQLGenDelegate {
 				typeName = "TEXT"
 			case .date:
 				typeName = "TEXT"
+			case .url:
+				typeName = "TEXT"
 			case .codable:
 				typeName = "TEXT"
 			}
@@ -362,6 +370,8 @@ class SQLiteExeDelegate: SQLExeDelegate {
 			try statement.bindNull(position: position)
 		case .date(let d):
 			try statement.bind(position: position, d.iso8601())
+		case .url(let u):
+			try statement.bind(position: position, u.absoluteString)
 		case .uuid(let u):
 			try statement.bind(position: position, u.uuidString)
 		case .column(_), .and(_, _), .or(_, _),
