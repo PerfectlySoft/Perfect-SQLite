@@ -416,8 +416,8 @@ public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
 		let prep = try sqlite.prepare(statement: sql)
 		return SQLiteExeDelegate(sqlite, stat: prep)
 	}
-	let name: String
-	let sqlite: SQLite
+	public let name: String
+	public let sqlite: SQLite
 	public init(_ n: String) throws {
 		name = n
 		sqlite = try SQLite(n)

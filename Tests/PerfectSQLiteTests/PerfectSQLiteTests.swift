@@ -1075,6 +1075,60 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
+	func testManyJoins() {
+		do {
+			let db = try getTestDB()
+			
+			struct Person2 : Codable{
+				var id : UUID
+				var name : String
+				let cars : [Car]?
+				let boats : [Boat]?
+				let houses : [House]?
+			}
+			struct Car : Codable{
+				var id : UUID
+				var owner : UUID
+			}
+			struct Boat : Codable{
+				var id : UUID
+				var owner : UUID
+			}
+			struct House : Codable{
+				var id : UUID
+				var owner : UUID
+			}
+			try db.create(Person2.self)
+			try db.table(Car.self).index(\.owner)
+			try db.table(Boat.self).index(\.owner)
+			try db.table(House.self).index(\.owner)
+			
+			let t1 = db.table(Person2.self)
+			let parentId = UUID()
+			let person = Person2(id: parentId, name: "The Person", cars: nil, boats: nil, houses: nil)
+			try t1.insert(person)
+
+			for _ in 0..<5 {
+				try  db.table(Car.self).insert(.init(id: UUID(), owner: parentId))
+				try db.table(Boat.self).insert(.init(id: UUID(), owner: parentId))
+				try db.table(House.self).insert(.init(id: UUID(), owner: parentId))
+			}
+
+			let j1 = try t1.join(\.cars, on: \.id, equals: \.owner)
+							.join(\.boats, on: \.id, equals: \.owner)
+							.join(\.houses, on: \.id, equals: \.owner)
+							.where(\Person2.id == parentId)
+			guard let j2 = try j1.first() else {
+				return XCTFail()
+			}
+			XCTAssertEqual(5, j2.cars?.count)
+			XCTAssertEqual(5, j2.boats?.count)
+			XCTAssertEqual(5, j2.houses?.count)
+		} catch {
+			XCTFail("\(error)")
+		}
+	}
+	
 	static var allTests = [
 		("testCreate1", testCreate1),
 		("testCreate2", testCreate2),
@@ -1103,7 +1157,8 @@ class PerfectSQLiteTests: XCTestCase {
 		("testAllPrimTypes2", testAllPrimTypes2),
 		("testBespokeSQL", testBespokeSQL),
 		("testModelClasses", testModelClasses),
-		("testURL", testURL)
+		("testURL", testURL),
+		("testManyJoins", testManyJoins)
 	]
 }
 
