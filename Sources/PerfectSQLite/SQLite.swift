@@ -39,7 +39,7 @@ public class SQLite {
     /// - parameter path: String path to SQLite database
     /// - parameter readOnly: Optional, Bool flag for read/write setting, defaults to false
     /// - throws: SQLiteError
-	public init(_ path: String, readOnly: Bool = false, busyTimeoutMillis: Int = 1000) throws {
+	public init(_ path: String, readOnly: Bool = false, busyTimeoutMillis: Int = 600000) throws {
 		self.path = path
 		let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE
 		let res = sqlite3_open_v2(path, &self.sqlite3, flags, nil)
