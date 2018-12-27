@@ -6,7 +6,12 @@
 
 import Foundation
 import PerfectCRUD
+// Apple platforms have SQLite3 built-in. Linux? No.
+#if os(Linux)
 import PerfectCSQLite3
+#else
+import SQLite3
+#endif
 
 public struct SQLiteCRUDError: Error, CustomStringConvertible {
 	public let description: String

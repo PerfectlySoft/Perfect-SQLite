@@ -17,15 +17,22 @@
 //===----------------------------------------------------------------------===//
 //
 
-import PerfectCSQLite3
+// Apple platforms have SQLite3 built-in. Linux? No.
 #if os(Linux)
+import PerfectCSQLite3
 import SwiftGlibc
+#else
+import SQLite3
 #endif
 
 /// This enum type indicates an exception when dealing with a SQLite database
-public enum SQLiteError : Error {
-	/// A SQLite error code and message.
-	case Error(code: Int, msg: String)
+public struct SQLiteError : Error, CustomStringConvertible {
+	public let code: Int
+	public let description: String
+	public init(code: Int, description: String) {
+		self.code = code
+		self.description = description
+	}
 }
 
 /// A SQLite database
@@ -44,7 +51,7 @@ public class SQLite {
 		let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE
 		let res = sqlite3_open_v2(path, &self.sqlite3, flags, nil)
 		if res != SQLITE_OK {
-			throw SQLiteError.Error(code: Int(res), msg: "Unable to open database "+path)
+			throw SQLiteError(code: Int(res), description: "Unable to open database "+path)
 		}
 		sqlite3_busy_timeout(self.sqlite3, Int32(busyTimeoutMillis))
 	}
@@ -236,7 +243,7 @@ public class SQLite {
 
 	func checkRes(_ res: Int) throws {
 		if res != Int(SQLITE_OK) {
-			throw SQLiteError.Error(code: res, msg: String(validatingUTF8: sqlite3_errmsg(self.sqlite3))!)
+			throw SQLiteError(code: res, description: String(validatingUTF8: sqlite3_errmsg(self.sqlite3))!)
 		}
 	}
 }
@@ -434,7 +441,7 @@ public class SQLiteStmt {
 	public func bindParameterIndex(name: String) throws -> Int {
 		let idx = sqlite3_bind_parameter_index(self.stat!, name)
 		guard idx != 0 else {
-			throw SQLiteError.Error(code: Int(SQLITE_MISUSE), msg: "The indicated bind parameter name was not found.")
+			throw SQLiteError(code: Int(SQLITE_MISUSE), description: "The indicated bind parameter name was not found.")
 		}
 		return Int(idx)
 	}
@@ -602,7 +609,7 @@ public class SQLiteStmt {
 
 	func checkRes(_ res: Int) throws {
 		if res != Int(SQLITE_OK) {
-			throw SQLiteError.Error(code: res, msg: String(validatingUTF8: sqlite3_errmsg(self.db!))!)
+			throw SQLiteError(code: res, description: String(validatingUTF8: sqlite3_errmsg(self.db!))!)
 		}
 	}
 
