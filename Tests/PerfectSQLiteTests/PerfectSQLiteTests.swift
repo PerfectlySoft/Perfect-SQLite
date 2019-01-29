@@ -102,13 +102,13 @@ class PerfectSQLiteTests: XCTestCase {
 				try t2.index(\.parentId)
 			}
 			let t1 = db.table(TestTable1.self)
+			let t2 = db.table(TestTable2.self)
 			let subId = UUID()
 			try db.transaction {
 				let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 				try t1.insert(newOne)
 				let newSub1 = TestTable2(id: subId, parentId: 2000, date: Date(), name: "Me")
 				let newSub2 = TestTable2(id: UUID(), parentId: 2000, date: Date(), name: "Not Me")
-				let t2 = db.table(TestTable2.self)
 				try t2.insert([newSub1, newSub2])
 			}
 			let j21 = try t1.join(\.subTables, on: \.id, equals: \.parentId)
@@ -1129,6 +1129,57 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 	}
 	
+	func testAssets() {
+		struct Asset: Codable {
+			let id: UUID
+			let name: String?
+			let assetLog: [AssetLog]?
+			init(id i: UUID,
+				 name n: String? = nil,
+				 assetLog log: [AssetLog]? = nil) {
+				id = i
+				name = n
+				assetLog = log
+			}
+		}
+		
+		struct AssetLog: Codable {
+			let assetId: UUID
+			let userId: UUID
+			let taken: Double
+			let returned: Double?
+			init(assetId: UUID, userId: UUID, taken: Double, returned: Double? = nil) {
+				self.assetId = assetId
+				self.userId = userId
+				self.taken = taken
+				self.returned = returned
+			}
+		}
+		
+		do {
+			let db = try getTestDB()
+			try db.create(Asset.self, policy: .dropTable)
+			let id = UUID()
+			let userId = UUID()
+			do {
+				let asset = Asset(id: id, name: "name")
+				try db.table(Asset.self).insert(asset)
+				let assetLogs = [AssetLog(assetId: id, userId: userId, taken: 1.0),
+								 AssetLog(assetId: id, userId: userId, taken: 2.0)]
+				try db.table(AssetLog.self).insert(assetLogs)
+			}
+			let assetTable = db.table(Asset.self)
+			let asset = try assetTable.join(\.assetLog, on: \.id, equals: \.assetId)
+				.where(\AssetLog.userId == userId && \AssetLog.returned == nil).first()
+			XCTAssertNotNil(asset?.assetLog)
+			XCTAssertEqual(asset?.id, id)
+			XCTAssertEqual(asset?.assetLog?.count, 2)
+		} catch {
+			XCTFail("\(error)")
+		}
+		
+	}
+	
 	static var allTests = [
 		("testCreate1", testCreate1),
 		("testCreate2", testCreate2),
@@ -1158,7 +1209,8 @@ class PerfectSQLiteTests: XCTestCase {
 		("testBespokeSQL", testBespokeSQL),
 		("testModelClasses", testModelClasses),
 		("testURL", testURL),
-		("testManyJoins", testManyJoins)
+		("testManyJoins", testManyJoins),
+		("testAssets", testAssets)
 	]
 }
 
