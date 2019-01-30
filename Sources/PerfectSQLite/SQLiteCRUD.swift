@@ -440,3 +440,13 @@ public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
 	}
 }
 
+public extension Insert {
+	func lastInsertId() throws -> Int? {
+		let exeDelegate = try databaseConfiguration.sqlExeDelegate(forSQL: "SELECT last_insert_rowid()")
+		guard try exeDelegate.hasNext(), let next: KeyedDecodingContainer<ColumnKey> = try exeDelegate.next() else {
+			throw CRUDSQLGenError("Did not get return value from statement \"SELECT last_insert_rowid()\".")
+		}
+		let value = try next.decode(Int.self, forKey: ColumnKey(stringValue: "last_insert_rowid()")!)
+		return value
+	}
+}
