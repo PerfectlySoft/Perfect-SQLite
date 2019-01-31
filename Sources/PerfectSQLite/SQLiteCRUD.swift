@@ -240,7 +240,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 			let exeDelegate = SQLiteExeDelegate(database, stat: prep)
 			var ret: [SQLiteColumnInfo] = []
 			while try exeDelegate.hasNext() {
-				let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: exeDelegate)
+				let rowDecoder = CRUDRowDecoder<ColumnKey>(delegate: exeDelegate)
 				ret.append(try SQLiteColumnInfo(from: rowDecoder))
 			}
 			return ret

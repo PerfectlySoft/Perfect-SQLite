@@ -10,7 +10,7 @@ let package = Package(
 		.library(name: "PerfectSQLite", targets: ["PerfectSQLite"])
 	],
 	dependencies: [
-		.package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "1.2.0"),
+		.package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "1.2.2"),
 		.package(url: "https://github.com/PerfectlySoft/Perfect-sqlite3-support.git", from: "3.0.0"),
 		],
 	targets: [

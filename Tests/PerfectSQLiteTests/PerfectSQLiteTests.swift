@@ -1180,6 +1180,32 @@ class PerfectSQLiteTests: XCTestCase {
 		
 	}
 	
+	func testEmptyInsert() {
+		do {
+			let db = try getTestDB()
+			struct ReturningItem: Codable, Equatable {
+				let id: Int?
+				var def: Int?
+				init(id: Int, def: Int? = nil) {
+					self.id = id
+					self.def = def
+				}
+			}
+			try db.sql("DROP TABLE IF EXISTS \(ReturningItem.CRUDTableName)")
+			try db.sql("CREATE TABLE \(ReturningItem.CRUDTableName) (id INT PRIMARY KEY, def INT DEFAULT 42)")
+			let table = db.table(ReturningItem.self)
+			
+			let id = try table
+				.insert(ReturningItem(id: 0, def: 0),
+						ignoreKeys: \ReturningItem.id, \ReturningItem.def)
+				.lastInsertId()
+			XCTAssertEqual(id, 1)
+			
+		} catch {
+			XCTFail("\(error)")
+		}
+	}
+	
 	func testLastInsertId() {
 		do {
 			let db = try getTestDB()
@@ -1237,7 +1263,8 @@ class PerfectSQLiteTests: XCTestCase {
 		("testURL", testURL),
 		("testManyJoins", testManyJoins),
 		("testAssets", testAssets),
-		("testLastInsertId", testLastInsertId)
+		("testLastInsertId", testLastInsertId),
+		("testEmptyInsert", testEmptyInsert)
 	]
 }
 
