@@ -39,7 +39,8 @@ class PerfectSQLiteTests: XCTestCase {
 			case id, name, integer = "int", double = "doub", blob, subTables
 		}
 		static let tableName = "test_table_1"
-		let id: Int
+		
+		@PrimaryKey var id: Int
 		let name: String?
 		let integer: Int?
 		let double: Double?
@@ -61,8 +62,8 @@ class PerfectSQLiteTests: XCTestCase {
 	}
 	
 	struct TestTable2: Codable {
-		let id: UUID
-		let parentId: Int
+		@PrimaryKey var id: UUID
+		@ForeignKey(TestTable1.self, onDelete: cascade, onUpdate: cascade) var parentId: Int
 		let date: Date
 		let name: String?
 		let int: Int?
@@ -76,21 +77,58 @@ class PerfectSQLiteTests: XCTestCase {
 			 doub: Double? = nil,
 			 blob: [UInt8]? = nil) {
 			self.id = id
-			self.parentId = parentId
 			self.date = date
 			self.name = name
 			self.int = int
 			self.doub = doub
 			self.blob = blob
+			self.parentId = parentId
 		}
 	}
 	
 	override func setUp() {
 		super.setUp()
+		CRUDClearTableStructureCache()
 	}
 	override func tearDown() {
 		CRUDLogging.flush()
 		super.tearDown()
+	}
+	
+	func testScratch1() {
+//		@propertyWrapper
+//		struct Default<Value: Codable>: Codable {
+//			var wrappedValue: Value
+//			init(wrappedValue: Value) {
+//				self.wrappedValue = wrappedValue
+//			}
+//		}
+
+		struct Foo: Codable {
+			@PrimaryKey var id: UUID
+			var bars: [Bar]?
+		}
+		
+		struct Bar: Codable {
+			@PrimaryKey var id: UUID
+			@ForeignKey(Foo.self, onDelete: cascade, onUpdate: cascade)
+			var fooId: UUID
+			
+			init(id: UUID, fooId: UUID) {
+				self.id = id
+				self.fooId = fooId
+			}
+		}
+
+		let id = UUID()
+		let foo = Foo(id: id)
+		let bar = Bar(id: UUID(), fooId: id)
+		do {
+			let db = try getDB()
+			try db.create(Foo.self, policy: .dropTable)
+		} catch {
+			XCTFail("\(error)")
+		}
 	}
 	
 	func testCreate1() {
@@ -150,7 +188,7 @@ class PerfectSQLiteTests: XCTestCase {
 	func testCreate2() {
 		do {
 			let db = try getTestDB()
-			try db.create(TestTable1.self, primaryKey: \.id, policy: .dropTable)
+			try db.create(TestTable1.self, policy: .dropTable)
 			do {
 				let t2 = db.table(TestTable2.self)
 				try t2.index(\.parentId, \.date)

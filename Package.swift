@@ -1,4 +1,4 @@
-// swift-tools-version:4.2
+// swift-tools-version:5.1
 // Generated automatically by Perfect Assistant
 // Date: 2018-12-25 02:23:42 +0000
 import PackageDescription
