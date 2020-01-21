@@ -105,7 +105,7 @@ class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			return ret as! T
 		case .data:
 			let bytes: [UInt8] = statement.columnIntBlob(position: position)
-			return Data(bytes: bytes) as! T
+			return Data(bytes) as! T
 		case .uuid:
 			let str = statement.columnText(position: position)
 			guard let uuid = UUID(uuidString: str) else {
@@ -129,6 +129,9 @@ class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				throw CRUDDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
 			}
 			return try JSONDecoder().decode(type, from: data)
+		case .wrapped:
+			let decoder = CRUDColumnValueDecoder(source: KeyedDecodingContainer(self), key: key)
+			return try T(from: decoder)
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
@@ -158,6 +161,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 	let database: SQLite
 	var parentTableStack: [TableStructure] = []
 	var bindings: Bindings = []
+	var extraCreate: [String] = []
 	
 	init(_ db: SQLite) {
 		database = db
@@ -177,12 +181,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 		defer {
 			parentTableStack.removeLast()
 		}
-		var sub: [String]
-		if !policy.contains(.shallow) {
-			sub = try forTable.subTables.flatMap { try getCreateTableSQL(forTable: $0, policy: policy) }
-		} else {
-			sub = []
-		}
+		var sub: [String] = []
 		if policy.contains(.dropTable) {
 			sub += ["DROP TABLE IF EXISTS \(try quote(identifier: forTable.tableName))"]
 		}
@@ -227,9 +226,14 @@ class SQLiteGenDelegate: SQLGenDelegate {
 			sub += [
 			"""
 			CREATE TABLE IF NOT EXISTS \(try quote(identifier: forTable.tableName)) (
-				\(try forTable.columns.map { try getColumnDefinition($0) }.joined(separator: ",\n\t"))
+				\((try forTable.columns.map { try getColumnDefinition($0) } + extraCreate).joined(separator: ",\n\t"))
 			)
 			"""]
+		}
+		if !policy.contains(.shallow) {
+			sub += try forTable.subTables.flatMap {
+				try getCreateTableSQL(forTable: $0, policy: policy)
+			}
 		}
 		return sub
 	}
@@ -248,10 +252,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 			return nil
 		}
 	}
-	
-	func getColumnDefinition(_ column: TableStructure.Column) throws -> String {
-		let name = column.name
-		let type = column.type
+	private func getTypeName(_ type: Any.Type) throws -> String {
 		let typeName: String
 		switch type {
 		case is Int.Type:
@@ -301,15 +302,47 @@ class SQLiteGenDelegate: SQLGenDelegate {
 				typeName = "TEXT"
 			case .codable:
 				typeName = "TEXT"
+			case .wrapped:
+				guard let w = type as? WrappedCodableProvider.Type else {
+					throw SQLiteCRUDError("Unsupported SQL column type \(type)")
+				}
+				return try getTypeName(w)
 			}
 		}
-		let addendum: String
-		if column.properties.contains(.primaryKey) {
-			addendum = " PRIMARY KEY"
-		} else if !column.optional {
-			addendum = " NOT NULL"
-		} else {
-			addendum = ""
+		return typeName
+	}
+	func getColumnDefinition(_ column: TableStructure.Column) throws -> String {
+		let name = column.name
+		let type = column.type
+		let typeName = try getTypeName(type)
+		var addendum = ""
+		for prop in column.properties {
+			switch prop {
+			case .primaryKey:
+				addendum += " PRIMARY KEY"
+			case .foreignKey(let table, let column, let onDelete, let onUpdate):
+				var str = "FOREIGN KEY(\(name)) REFERENCES \(table)(\(column))"
+				let scenarios = [(" ON DELETE ", onDelete), (" ON UPDATE ", onUpdate)]
+				for (scenario, action) in scenarios {
+					str += scenario
+					switch action {
+					case .ignore:
+						str += "NO ACTION"
+					case .restrict:
+						str += "RESTRICT"
+					case .setNull:
+						str += "SET NULL"
+					case .setDefault:
+						str += "SET DEFAULT"
+					case .cascade:
+						str += "CASCADE"
+					}
+				}
+				extraCreate.append(str)
+			}
+		}
+		if !column.properties.contains(.primaryKey) && !column.optional {
+			addendum += " NOT NULL"
 		}
 		return "\(name) \(typeName)\(addendum)"
 	}
@@ -423,9 +456,12 @@ public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
 	}
 	public let name: String
 	public let sqlite: SQLite
-	public init(_ n: String) throws {
+	public init(_ n: String, _ pragmas: [String] = ["PRAGMA foreign_keys = ON"]) throws {
 		name = n
 		sqlite = try SQLite(n)
+		for pragma in pragmas {
+			try sqlite.execute(statement: pragma)
+		}
 	}
 	public init(url: String?,
 				name: String?,
