@@ -12,7 +12,7 @@ let package = Package(
 	dependencies: [
 		.package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "2.0.0"),
 		.package(url: "https://github.com/PerfectlySoft/Perfect-sqlite3-support.git", from: "3.0.0"),
-		],
+	],
 	targets: [
 		.target(name: "PerfectSQLite", dependencies: ["PerfectCRUD"]),
 		.testTarget(name: "PerfectSQLiteTests", dependencies: ["PerfectSQLite"])
@@ -21,9 +21,9 @@ let package = Package(
 #else
 let package = Package(
 	name: "PerfectSQLite",
-    platforms: [
-        .macOS(.v10_15)
-    ],
+	platforms: [
+		.macOS(.v10_15)
+	],
 	products: [
 		.library(name: "PerfectSQLite", targets: ["PerfectSQLite"])
 	],
