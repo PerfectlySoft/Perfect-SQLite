@@ -121,8 +121,8 @@ class PerfectSQLiteTests: XCTestCase {
 		}
 
 		let id = UUID()
-		let foo = Foo(id: id)
-		let bar = Bar(id: UUID(), fooId: id)
+		_ = Foo(id: id)
+		_ = Bar(id: UUID(), fooId: id)
 		do {
 			let db = try getDB()
 			try db.create(Foo.self, policy: .dropTable)
