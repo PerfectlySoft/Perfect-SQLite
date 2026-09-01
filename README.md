@@ -12,9 +12,11 @@
     </a>
 </p>
 
-This project provides a Swift wrapper around the SQLite 3 C library, plus a [Perfect-CRUD](https://github.com/taplin/Perfect-CRUD) database driver built on top of it.
+This project provides a Swift wrapper around the SQLite 3 C library, plus a [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) database driver built on top of it.
 
-This package is part of the `Perfect-Resurrection` fork, a modernization of the original [PerfectlySoft](https://github.com/PerfectlySoft) Perfect project for Swift 6 / macOS 12. It requires **swift-tools-version 6.2** and builds under full **Swift 6 language mode** (strict concurrency checking on for both the library and test targets). It declares `platforms: [.macOS(.v12)]` — this is a **macOS-only** package today; no Linux (or iOS/tvOS/watchOS) platform is declared in `Package.swift`.
+**Modernized for Swift 6.** Requires **swift-tools-version 6.2** and builds under full **Swift 6 language mode** (strict concurrency checking on for both the library and test targets). Declares `platforms: [.macOS(.v12)]` — this is a **macOS-only** package today; no Linux (or iOS/tvOS/watchOS) platform is declared in `Package.swift`.
+
+The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tree/legacy) branch.
 
 ## What's in this package
 
@@ -31,23 +33,25 @@ This package has a single dependency:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/taplin/Perfect-CRUD.git", branch: "main"),
+    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", branch: "main"),
 ],
 ```
 
-It depends on **Perfect-CRUD** (product `PerfectCRUD`) for the ORM integration layer. It does not depend on PerfectLib or any other Perfect-Resurrection package, and has no remote/external package dependencies — only the system SQLite3 C library.
+It depends on **Perfect-CRUD** (product `PerfectCRUD`) for the ORM integration layer, and has no remote/external package dependencies otherwise — only the system SQLite3 C library.
 
-## Where this fits in Perfect-Resurrection
+## Where this fits
 
-This package is real, tested, working code — it is one of the four backend session drivers consumed by **Perfect-Session** (`Perfect-Session/Sources/PerfectSessionSQLite/SQLiteSessionDriver.swift` does `import PerfectSQLite` directly and uses the CRUD integration above). It is **not** currently the active backend in Perfect-Lasso's development/validation setup (`scrubsSite`), which uses MySQL for sessions today — SQLite support here is supported, tested infrastructure staged for use, not a deprecated or unused code path.
+This package is real, tested, working code — it is one of the four backend session drivers consumed
+by **Perfect-Session** (`SQLiteSessionDriver.swift` does `import PerfectSQLite` directly and uses
+the CRUD integration above).
 
 ## Building
 
-Add this project as a dependency in your `Package.swift`, matching how sibling packages in this fork consume it:
+Add this project as a dependency in your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/taplin/Perfect-SQLite.git", branch: "main"),
+    .package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", branch: "main"),
 ],
 ```
 

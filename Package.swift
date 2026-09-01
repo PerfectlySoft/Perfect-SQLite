@@ -8,7 +8,7 @@ let package = Package(
         .library(name: "PerfectSQLite", targets: ["PerfectSQLite"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/taplin/Perfect-CRUD.git", branch: "main"),
+        .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", branch: "main"),
     ],
     targets: [
         .target(
