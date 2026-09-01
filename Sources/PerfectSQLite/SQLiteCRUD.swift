@@ -6,12 +6,7 @@
 
 import Foundation
 import PerfectCRUD
-// Apple platforms have SQLite3 built-in. Linux? No.
-#if os(Linux)
-import PerfectCSQLite3
-#else
 import SQLite3
-#endif
 
 public struct SQLiteCRUDError: Error, CustomStringConvertible {
 	public let description: String
@@ -24,7 +19,7 @@ public struct SQLiteCRUDError: Error, CustomStringConvertible {
 // maps column name to position which must be computed once before row reading action
 typealias SQLiteCRUDColumnMap = [String:Int]
 
-class SQLiteCRUDRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
+class SQLiteCRUDRowReader<K: CodingKey>: KeyedDecodingContainerProtocol, @unchecked Sendable {
 	typealias Key = K
 	var codingPath: [CodingKey] = []
 	var allKeys: [Key] = []
@@ -157,7 +152,7 @@ struct SQLiteColumnInfo: Codable {
 	let pk: Bool
 }
 
-class SQLiteGenDelegate: SQLGenDelegate {
+class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 	let database: SQLite
 	var parentTableStack: [TableStructure] = []
 	var bindings: Bindings = []
@@ -346,7 +341,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 		}
 		return "\(name) \(typeName)\(addendum)"
 	}
-	func getBinding(for expr: Expression) throws -> String {
+	func getBinding(for expr: CRUDExpression) throws -> String {
 		bindings.append(("?", expr))
 		return "?"
 	}
@@ -358,7 +353,7 @@ class SQLiteGenDelegate: SQLGenDelegate {
 // maps column name to position which must be computed once before row reading action
 typealias SQLiteColumnMap = [String:Int]
 
-class SQLiteExeDelegate: SQLExeDelegate {
+class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 	let database: SQLite
 	let statement: SQLiteStmt
 	let columnMap: SQLiteColumnMap
@@ -391,6 +386,13 @@ class SQLiteExeDelegate: SQLExeDelegate {
 	}
 	func next<A>() -> KeyedDecodingContainer<A>? where A : CodingKey {
 		return KeyedDecodingContainer(SQLiteCRUDRowReader<A>(database, stat: statement, columns: columnMap))
+	}
+	func nextDynamicRow() throws -> DynamicRow? {
+		var values: [String: DynamicValue] = [:]
+		for (name, position) in columnMap {
+			values[name] = sqliteDynamicValue(statement, position: position)
+		}
+		return DynamicRow(values)
 	}
 	private func bindOne(position: Int, expr: CRUDExpression) throws {
 		switch expr {
@@ -444,6 +446,19 @@ class SQLiteExeDelegate: SQLExeDelegate {
 			try statement.bind(position: position, b.map{UInt8(bitPattern: $0)})
 		}
 	}
+}
+
+func sqliteDynamicValue(_ statement: SQLiteStmt, position: Int) -> DynamicValue {
+	if statement.isNull(position: position) {
+		return .null
+	} else if statement.isInteger(position: position) {
+		return .int(statement.columnInt64(position: position))
+	} else if statement.isFloat(position: position) {
+		return .double(statement.columnDouble(position: position))
+	} else if statement.isBlob(position: position) {
+		return .bytes(statement.columnIntBlob(position: position))
+	}
+	return .string(statement.columnText(position: position))
 }
 
 public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {

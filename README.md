@@ -1,77 +1,65 @@
 # Perfect - SQLite Connector
 
-
-<p align="center">
-    <a href="http://perfect.org/get-involved.html" target="_blank">
-        <img src="http://perfect.org/assets/github/perfect_github_2_0_0.jpg" alt="Get Involed with Perfect!" width="854" />
-    </a>
-</p>
-
-<p align="center">
-    <a href="https://github.com/PerfectlySoft/Perfect" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_1_Star.jpg" alt="Star Perfect On Github" />
-    </a>  
-    <a href="http://stackoverflow.com/questions/tagged/perfect" target="_blank">
-        <img src="http://www.perfect.org/github/perfect_gh_button_2_SO.jpg" alt="Stack Overflow" />
-    </a>  
-    <a href="https://twitter.com/perfectlysoft" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_3_twit.jpg" alt="Follow Perfect on Twitter" />
-    </a>  
-    <a href="http://perfect.ly" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_4_slack.jpg" alt="Join the Perfect Slack" />
-    </a>
-</p>
-
 <p align="center">
     <a href="https://developer.apple.com/swift/" target="_blank">
-        <img src="https://img.shields.io/badge/Swift-4.0-orange.svg?style=flat" alt="Swift 4.0">
+        <img src="https://img.shields.io/badge/Swift-6.2-orange.svg?style=flat" alt="Swift 6.2">
     </a>
-    <a href="https://developer.apple.com/swift/" target="_blank">
-        <img src="https://img.shields.io/badge/Platforms-OS%20X%20%7C%20Linux%20-lightgray.svg?style=flat" alt="Platforms OS X | Linux">
+    <a href="https://developer.apple.com/macos/" target="_blank">
+        <img src="https://img.shields.io/badge/Platforms-macOS%2012%2B-lightgray.svg?style=flat" alt="Platforms macOS 12+">
     </a>
-    <a href="http://perfect.org/licensing.html" target="_blank">
+    <a href="./LICENSE" target="_blank">
         <img src="https://img.shields.io/badge/License-Apache-lightgrey.svg?style=flat" alt="License Apache">
     </a>
-    <a href="http://twitter.com/PerfectlySoft" target="_blank">
-        <img src="https://img.shields.io/badge/Twitter-@PerfectlySoft-blue.svg?style=flat" alt="PerfectlySoft Twitter">
-    </a>
-    <a href="http://perfect.ly" target="_blank">
-        <img src="http://perfect.ly/badge.svg" alt="Slack Status">
-    </a>
 </p>
 
-This project provides a Swift wrapper around the SQLite 3 library.
+This project provides a Swift wrapper around the SQLite 3 C library, plus a [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) database driver built on top of it.
 
-This package builds with Swift Package Manager and is part of the [Perfect](https://github.com/PerfectlySoft/Perfect) project. It was written to be stand-alone and so does not require PerfectLib or any other components.
+**Modernized for Swift 6.** Requires **swift-tools-version 6.2** and builds under full **Swift 6 language mode** (strict concurrency checking on for both the library and test targets). Declares `platforms: [.macOS(.v12)]` — this is a **macOS-only** package today; no Linux (or iOS/tvOS/watchOS) platform is declared in `Package.swift`.
 
-Ensure you have installed and activated the latest Swift 4.0 tool chain.
+The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tree/legacy) branch.
 
-To learn more, you can read the full documentation guide [here](https://github.com/PerfectlySoft/PerfectDocs/blob/master/guide/SQLite.md) or jump to the example [here](#Usage-Example)
+## What's in this package
 
+`Sources/PerfectSQLite` contains two files:
 
-## Linux Build Notes
+- **`SQLite.swift`** — a thin, synchronous Swift wrapper around the SQLite3 C API: the `SQLite` class (open/close/prepare/execute/`forEachRow`/transactions) and `SQLiteStmt` (bind-by-position/name, column reading).
+- **`SQLiteCRUD.swift`** — roughly half the package's source — implements the integration that lets [Perfect-CRUD](../Perfect-CRUD)'s typed query builder target a SQLite database: `SQLiteCRUDRowReader` (a `KeyedDecodingContainer` bridge from SQLite columns to `Codable` types), `SQLiteGenDelegate`/`SQLiteExeDelegate` (PerfectCRUD's `SQLGenDelegate`/`SQLExeDelegate`), and `SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol`.
 
-Ensure that you have installed sqlite3.
+Both `SQLite` and `SQLiteStmt` (and the CRUD delegate classes) are marked `@unchecked Sendable` rather than being actors — there is no async/await anywhere in this module. This is a manual Sendable opt-out around raw `OpaquePointer`/mutable C-backed state: none of these types are internally thread-safe, so callers are responsible for serializing their own access to a given `SQLite`/`SQLiteStmt` instance.
 
+## Dependencies
+
+This package has a single dependency:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", branch: "main"),
+],
 ```
-sudo apt-get install sqlite3
-```
+
+It depends on **Perfect-CRUD** (product `PerfectCRUD`) for the ORM integration layer, and has no remote/external package dependencies otherwise — only the system SQLite3 C library.
+
+## Where this fits
+
+This package is real, tested, working code — it is one of the four backend session drivers consumed
+by **Perfect-Session** (`SQLiteSessionDriver.swift` does `import PerfectSQLite` directly and uses
+the CRUD integration above).
 
 ## Building
 
-Add this project as a dependency in your Package.swift file.
+Add this project as a dependency in your `Package.swift`:
 
+```swift
+dependencies: [
+    .package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", branch: "main"),
+],
 ```
-.Package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", majorVersion: 3)
-```
 
-### Edge Case
-If you encounter error like such ``` sqlite3.h file not found ``` during ```$ swift build ```, one solution is to install the sqlite3-dev i.e. ```$ sudo apt-get install libsqlite3-dev```
+and add `"PerfectSQLite"` to your target's `dependencies` array. Ensure you have the Swift 6.2 toolchain (or newer) installed and a macOS 12+ SDK, and that `sqlite3` is available (it ships with macOS). If you encounter `sqlite3.h file not found` during `swift build`, verify your active toolchain and SDK are correctly selected.
 
+## Usage Example — raw SQLite API
 
-## Usage Example
-
-Let’s assume you’d like to host a blog in Swift. First we need tables. Assuming you’ve created an SQLite file `./db/database`, we simply need to connect and add the tables. 
+Let's assume you'd like to host a blog in Swift. First we need tables. Assuming you've created an SQLite file `./db/database`, we simply need to connect and add the tables.
 
 ```swift
 let dbPath = "./db/database"
@@ -88,7 +76,7 @@ do {
 }
 ```
 
-Next, we would need to add some content. 
+Next, we would need to add some content.
 
 ```swift
 let dbPath = "./db/database"
@@ -112,11 +100,11 @@ do {
  }
 ```
 
-Finally, we retrieve posts and post titles from an SQLite database full of blog content. Each id, post, and title is appended to a dictionary for use elsewhere. 
+Finally, we retrieve posts and post titles from an SQLite database full of blog content. Each row is appended to an array of dictionaries for use elsewhere.
 
 ``` swift
 let dbPath = "./db/database"
-var contentDict = [String: Any]()
+var contentRows = [[String: String]]()
 
 do {
 	let sqlite = try SQLite(dbPath)
@@ -135,7 +123,7 @@ do {
 		
 	}) {(statement: SQLiteStmt, i:Int) -> () in
 
-        self.contentDict.append([
+        contentRows.append([
                 "id": statement.columnText(position: 0),
                 "second_field": statement.columnText(position: 1),
                 "third_field": statement.columnText(position: 2)
@@ -147,5 +135,10 @@ do {
 }
 ```
 
+## Usage — Perfect-CRUD integration
+
+For typed, Codable-based access instead of raw SQL, register a `SQLiteDatabaseConfiguration` with Perfect-CRUD's `Database` type and use its normal query-builder API (`table(...)`, `select()`, `insert(...)`, etc.) against a local SQLite file — this is the path `SQLiteCRUD.swift` implements, and the one Perfect-Session's `SQLiteSessionDriver` relies on. See `Sources/PerfectSQLite/SQLiteCRUD.swift` and the [Perfect-CRUD](../Perfect-CRUD) README for the CRUD API itself.
+
 ## Further Information
-For more information on the Perfect project, please visit [perfect.org](http://www.perfect.org/docs/SQLite.html).
+
+See `docs/` in this repository, or the [Perfect-CRUD](../Perfect-CRUD) package for the ORM layer this package integrates with.

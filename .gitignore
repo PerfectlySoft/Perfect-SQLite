@@ -73,3 +73,6 @@ Package.pins
 Package.resolved
 buildlinux
 *.xcodeproj/
+
+# Local SwiftPM dependency mirrors (machine-specific absolute paths, never commit)
+.swiftpm/
