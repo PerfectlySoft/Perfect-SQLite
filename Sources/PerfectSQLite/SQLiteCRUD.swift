@@ -6,7 +6,11 @@
 
 import Foundation
 import PerfectCRUD
+#if canImport(SQLite3)
 import SQLite3
+#else
+import PerfectCSQLite
+#endif
 
 public struct SQLiteCRUDError: Error, CustomStringConvertible {
 	public let description: String

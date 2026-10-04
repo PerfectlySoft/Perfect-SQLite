@@ -1,4 +1,8 @@
+#if canImport(SQLite3)
 import SQLite3
+#else
+import PerfectCSQLite
+#endif
 
 public struct SQLiteError: Error, CustomStringConvertible {
     public let code: Int

@@ -1,0 +1,5 @@
+module PerfectCSQLite [system] {
+    header "PerfectCSQLite.h"
+    link "sqlite3"
+    export *
+}
