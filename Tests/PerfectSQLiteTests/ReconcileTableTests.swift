@@ -100,6 +100,15 @@ struct CaseChangedTable: Codable, TableNameProvider {
     let added: Int?
 }
 
+struct UnicodeCaseTable: Codable, TableNameProvider {
+    enum CodingKeys: String, CodingKey {
+        case id, cafe = "CAFÉ"
+    }
+    static let tableName = "unicode_case"
+    @PrimaryKey var id: Int
+    let cafe: String?
+}
+
 struct ForeignKeyInfo: Equatable {
     let table: String
     let from: String
@@ -310,5 +319,19 @@ extension PerfectSQLiteTests {
         try db.create(CaseChangedTable.self, policy: .reconcileTable)
         #expect(try columnNames(db, of: "case_changed") == ["id", "name", "added"])
         #expect(try db.table(CaseChangedTable.self).first()?.name == "one")
+    }
+
+    // SQLite folds only ASCII letters, so "café" and "CAFÉ" are different columns.
+    @Test func reconcileFoldsOnlyASCIICase() throws {
+        let db = try getDB()
+        try db.sql("CREATE TABLE unicode_case (id INT PRIMARY KEY, \"café\" TEXT, \"CAFÉ\" TEXT)")
+        try db.sql("INSERT INTO unicode_case VALUES (1, 'lower', 'upper')")
+        try db.create(UnicodeCaseTable.self, policy: .reconcileTable)
+        #expect(try columnNames(db, of: "unicode_case") == ["id", "CAFÉ"])
+        #expect(try db.table(UnicodeCaseTable.self).first()?.cafe == "upper")
+        try db.sql("DROP TABLE unicode_case")
+        try db.sql("CREATE TABLE unicode_case (id INT PRIMARY KEY, \"café\" TEXT)")
+        try db.create(UnicodeCaseTable.self, policy: .reconcileTable)
+        #expect(try columnNames(db, of: "unicode_case") == ["id", "CAFÉ"])
     }
 }

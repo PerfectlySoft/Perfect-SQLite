@@ -156,6 +156,22 @@ struct SQLiteColumnInfo: Codable {
 	let pk: Bool
 }
 
+extension String {
+	// The form SQLite compares identifiers in: only ASCII letters are case-insensitive, so
+	// "café" and "CAFÉ" are different names to it (lowercased() would make them one).
+	var sqliteFolded: String {
+		var folded = String.UnicodeScalarView()
+		for scalar in unicodeScalars {
+			if ("A"..."Z").contains(scalar), let lower = Unicode.Scalar(scalar.value + 32) {
+				folded.append(lower)
+			} else {
+				folded.append(scalar)
+			}
+		}
+		return String(folded)
+	}
+}
+
 class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 	let database: SQLite
 	var parentTableStack: [TableStructure] = []
@@ -181,10 +197,14 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 	// reconciled its sub-tables, and .dropTable dropped a parent before its children, which
 	// fails with foreign_keys on when a RESTRICT or NO ACTION child has rows. Drops are now
 	// done children first.
+	//
+	// Reconciling a sub-table removes the columns its type doesn't have, as for the table
+	// itself (use .shallow to leave sub-tables alone). The statements aren't run in one
+	// transaction: a step that fails leaves the tables before it changed.
 	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String] {
 		var tables: [TableStructure] = []
 		func collect(_ table: TableStructure) {
-			guard !tables.contains(where: { $0.tableName.lowercased() == table.tableName.lowercased() }) else {
+			guard !tables.contains(where: { $0.tableName.sqliteFolded == table.tableName.sqliteFolded }) else {
 				return
 			}
 			tables.append(table)
@@ -196,12 +216,12 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 		var ordered: [TableStructure] = []
 		var remaining = tables
 		while !remaining.isEmpty {
-			let pending = Set(remaining.map { $0.tableName.lowercased() })
+			let pending = Set(remaining.map { $0.tableName.sqliteFolded })
 			let next = remaining.firstIndex { table in
 				!table.columns.contains { column in
 					column.properties.contains {
 						if case .foreignKey(let target, _, _, _) = $0 {
-							return target.lowercased() != table.tableName.lowercased() && pending.contains(target.lowercased())
+							return target.sqliteFolded != table.tableName.sqliteFolded && pending.contains(target.sqliteFolded)
 						}
 						return false
 					}
@@ -236,17 +256,17 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 				policy.contains(.reconcileTable),
 				let existingColumns = getExistingColumnData(forTable: forTable.tableName),
 				!existingColumns.isEmpty {
-			// SQLite column names are case-insensitive. Keyed as given, a column whose name
+			// SQLite column names are case-insensitive (for ASCII letters). Keyed as given, a column whose name
 			// only changed case looked removed and added, so the rebuild lost its data.
-			let existingColumnMap: [String:SQLiteColumnInfo] = .init(existingColumns.map { ($0.name.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
-			let newColumnMap: [String:TableStructure.Column] = .init(forTable.columns.map { ($0.name.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
+			let existingColumnMap: [String:SQLiteColumnInfo] = .init(existingColumns.map { ($0.name.sqliteFolded, $0) }, uniquingKeysWith: { first, _ in first })
+			let newColumnMap: [String:TableStructure.Column] = .init(forTable.columns.map { ($0.name.sqliteFolded, $0) }, uniquingKeysWith: { first, _ in first })
 			
-			let addColumns = forTable.columns.filter { existingColumnMap[$0.name.lowercased()] == nil }
-			let removeColumns = existingColumns.filter { newColumnMap[$0.name.lowercased()] == nil }
+			let addColumns = forTable.columns.filter { existingColumnMap[$0.name.sqliteFolded] == nil }
+			let removeColumns = existingColumns.filter { newColumnMap[$0.name.sqliteFolded] == nil }
 			
 			if !removeColumns.isEmpty {
 				// The rebuilt table takes the model's spelling of every column.
-				let sharedColumns = existingColumns.filter { newColumnMap[$0.name.lowercased()] != nil }.map { $0.name }
+				let sharedColumns = existingColumns.filter { newColumnMap[$0.name.sqliteFolded] != nil }.map { $0.name }
 				try beforeRebuild()
 				try rebuildTable(forTable, copying: sharedColumns)
 				return []
@@ -254,7 +274,7 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 			// A result column is named as the table spells it and rows are decoded by the
 			// model's spelling, so a column that only changed case is renamed to match.
 			let renames = try forTable.columns.compactMap { column -> String? in
-				guard let existing = existingColumnMap[column.name.lowercased()], existing.name != column.name else {
+				guard let existing = existingColumnMap[column.name.sqliteFolded], existing.name != column.name else {
 					return nil
 				}
 				return """
@@ -343,7 +363,7 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 				let referencesItself = table.columns.contains { column in
 					column.properties.contains {
 						if case .foreignKey(let target, _, _, _) = $0 {
-							return target.lowercased() == name.lowercased()
+							return target.sqliteFolded == name.sqliteFolded
 						}
 						return false
 					}
