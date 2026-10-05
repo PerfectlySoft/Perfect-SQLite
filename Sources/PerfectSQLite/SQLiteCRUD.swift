@@ -593,9 +593,18 @@ public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
 	}
 	public let name: String
 	public let sqlite: SQLite
+	/// Opens `n` with SQLite's double-quoted string literal fallback off, so a
+	/// Dynamic API field name that matches no column throws instead of being
+	/// read as a string literal.
 	public init(_ n: String, _ pragmas: [String] = ["PRAGMA foreign_keys = ON"]) throws {
+		try self.init(n, pragmas, doubleQuotedStrings: false)
+	}
+	/// `doubleQuotedStrings: true` restores the fallback for legacy SQL; see
+	/// `SQLite.init(_:readOnly:busyTimeoutMillis:doubleQuotedStrings:)`.
+	public init(_ n: String, _ pragmas: [String] = ["PRAGMA foreign_keys = ON"],
+				doubleQuotedStrings: Bool) throws {
 		name = n
-		sqlite = try SQLite(n)
+		sqlite = try SQLite(n, doubleQuotedStrings: doubleQuotedStrings)
 		for pragma in pragmas {
 			try sqlite.execute(statement: pragma)
 		}

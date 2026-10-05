@@ -23,11 +23,20 @@ let package = Package(
                 .yum(["sqlite-devel"]),
             ]
         ),
+        // C wrappers for SQLite calls Swift can't import (variadic sqlite3_db_config).
+        .target(
+            name: "PerfectSQLiteShim",
+            dependencies: [
+                .target(name: "PerfectCSQLite", condition: .when(platforms: [.linux])),
+            ],
+            linkerSettings: [.linkedLibrary("sqlite3")]
+        ),
         .target(
             name: "PerfectSQLite",
             dependencies: [
                 .product(name: "PerfectCRUD", package: "Perfect-CRUD"),
                 .target(name: "PerfectCSQLite", condition: .when(platforms: [.linux])),
+                "PerfectSQLiteShim",
             ],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
