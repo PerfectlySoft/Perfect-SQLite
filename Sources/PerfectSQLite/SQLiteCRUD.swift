@@ -156,6 +156,22 @@ struct SQLiteColumnInfo: Codable {
 	let pk: Bool
 }
 
+extension String {
+	// The form SQLite compares identifiers in: only ASCII letters are case-insensitive, so
+	// "café" and "CAFÉ" are different names to it (lowercased() would make them one).
+	var sqliteFolded: String {
+		var folded = String.UnicodeScalarView()
+		for scalar in unicodeScalars {
+			if ("A"..."Z").contains(scalar), let lower = Unicode.Scalar(scalar.value + 32) {
+				folded.append(lower)
+			} else {
+				folded.append(scalar)
+			}
+		}
+		return String(folded)
+	}
+}
+
 class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 	let database: SQLite
 	var parentTableStack: [TableStructure] = []
@@ -175,56 +191,111 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 		return [stat]
 	}
 	
+	// The table and (unless .shallow) its sub-tables, each created or reconciled, with the
+	// tables a FOREIGN KEY references before the tables referencing them. Sub-tables used to
+	// be reached only after a CREATE, so reconciling an existing table never created or
+	// reconciled its sub-tables, and .dropTable dropped a parent before its children, which
+	// fails with foreign_keys on when a RESTRICT or NO ACTION child has rows. Drops are now
+	// done children first.
+	//
+	// Reconciling a sub-table removes the columns its type doesn't have, as for the table
+	// itself (use .shallow to leave sub-tables alone). The statements aren't run in one
+	// transaction: a step that fails leaves the tables before it changed.
 	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String] {
-		parentTableStack.append(forTable)
-		defer {
-			parentTableStack.removeLast()
+		var tables: [TableStructure] = []
+		func collect(_ table: TableStructure) {
+			guard !tables.contains(where: { $0.tableName.sqliteFolded == table.tableName.sqliteFolded }) else {
+				return
+			}
+			tables.append(table)
+			if !policy.contains(.shallow) {
+				table.subTables.forEach(collect)
+			}
 		}
-		var sub: [String] = []
+		collect(forTable)
+		var ordered: [TableStructure] = []
+		var remaining = tables
+		while !remaining.isEmpty {
+			let pending = Set(remaining.map { $0.tableName.sqliteFolded })
+			let next = remaining.firstIndex { table in
+				!table.columns.contains { column in
+					column.properties.contains {
+						if case .foreignKey(let target, _, _, _) = $0 {
+							return target.sqliteFolded != table.tableName.sqliteFolded && pending.contains(target.sqliteFolded)
+						}
+						return false
+					}
+				}
+			} ?? remaining.startIndex
+			ordered.append(remaining.remove(at: next))
+		}
+		var sql: [String] = []
 		if policy.contains(.dropTable) {
-			sub += ["DROP TABLE IF EXISTS \(try quote(identifier: forTable.tableName))"]
+			sql += try ordered.reversed().map { "DROP TABLE IF EXISTS \(try quote(identifier: $0.tableName))" }
 		}
+		for table in ordered {
+			parentTableStack.append(table)
+			defer {
+				parentTableStack.removeLast()
+			}
+			sql += try getCreateOrReconcileSQL(forTable: table, policy: policy) {
+				// A rebuild runs immediately, so the statements for the tables before it run
+				// first, keeping the tables in order.
+				for stat in sql {
+					CRUDLogging.log(.query, stat)
+					try database.execute(statement: stat)
+				}
+				sql = []
+			}
+		}
+		return sql
+	}
+
+	private func getCreateOrReconcileSQL(forTable: TableStructure, policy: TableCreatePolicy, beforeRebuild: () throws -> ()) throws -> [String] {
 		if !policy.contains(.dropTable),
 				policy.contains(.reconcileTable),
 				let existingColumns = getExistingColumnData(forTable: forTable.tableName),
 				!existingColumns.isEmpty {
-			let existingColumnMap: [String:SQLiteColumnInfo] = .init(uniqueKeysWithValues: existingColumns.map { ($0.name, $0) })
-			let newColumnMap: [String:TableStructure.Column] = .init(uniqueKeysWithValues: forTable.columns.map { ($0.name, $0) })
+			// SQLite column names are case-insensitive (for ASCII letters). Keyed as given, a column whose name
+			// only changed case looked removed and added, so the rebuild lost its data.
+			let existingColumnMap: [String:SQLiteColumnInfo] = .init(existingColumns.map { ($0.name.sqliteFolded, $0) }, uniquingKeysWith: { first, _ in first })
+			let newColumnMap: [String:TableStructure.Column] = .init(forTable.columns.map { ($0.name.sqliteFolded, $0) }, uniquingKeysWith: { first, _ in first })
 			
-			let addColumns = newColumnMap.keys.filter { existingColumnMap[$0] == nil }
-			let removeColumns: [String] = existingColumnMap.keys.filter { newColumnMap[$0] == nil }
+			let addColumns = forTable.columns.filter { existingColumnMap[$0.name.sqliteFolded] == nil }
+			let removeColumns = existingColumns.filter { newColumnMap[$0.name.sqliteFolded] == nil }
 			
 			if !removeColumns.isEmpty {
-				let sharedColumns = existingColumns.map { $0.name }.filter { !removeColumns.contains($0) }
+				// The rebuilt table takes the model's spelling of every column.
+				let sharedColumns = existingColumns.filter { newColumnMap[$0.name.sqliteFolded] != nil }.map { $0.name }
+				try beforeRebuild()
 				try rebuildTable(forTable, copying: sharedColumns)
-			} else {
-				// getColumnDefinition(_:) collects FOREIGN KEY clauses; don't let these reach
-				// the next table's CREATE.
-				defer {
-					extraCreate = []
-				}
-				sub += try addColumns.compactMap { newColumnMap[$0] }.map {
-					let nameType = try getColumnDefinition($0)
-					return """
-					ALTER TABLE \(try quote(identifier: forTable.tableName)) ADD COLUMN \(nameType)
-					"""
-				}
+				return []
 			}
-			return sub
-		} else {
-			sub += [
+			// A result column is named as the table spells it and rows are decoded by the
+			// model's spelling, so a column that only changed case is renamed to match.
+			let renames = try forTable.columns.compactMap { column -> String? in
+				guard let existing = existingColumnMap[column.name.sqliteFolded], existing.name != column.name else {
+					return nil
+				}
+				return """
+				ALTER TABLE \(try quote(identifier: forTable.tableName)) RENAME COLUMN \(try quote(identifier: existing.name)) TO \(try quote(identifier: column.name))
+				"""
+			}
+			// A new @ForeignKey column gets its FOREIGN KEY as a column constraint; ADD COLUMN
+			// can't add a table constraint.
+			return try renames + addColumns.map {
+				let nameType = try getColumnDefinition($0, foreignKeysInline: true)
+				return """
+				ALTER TABLE \(try quote(identifier: forTable.tableName)) ADD COLUMN \(nameType)
+				"""
+			}
+		}
+		return [
 			"""
 			CREATE TABLE IF NOT EXISTS \(try quote(identifier: forTable.tableName)) (
 				\(try getTableDefinition(forTable))
 			)
 			"""]
-		}
-		if !policy.contains(.shallow) {
-			sub += try forTable.subTables.flatMap {
-				try getCreateTableSQL(forTable: $0, policy: policy)
-			}
-		}
-		return sub
 	}
 
 	// The column definitions plus the FOREIGN KEY clauses getColumnDefinition(_:) collects for
@@ -292,7 +363,7 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 				let referencesItself = table.columns.contains { column in
 					column.properties.contains {
 						if case .foreignKey(let target, _, _, _) = $0 {
-							return target.lowercased() == name.lowercased()
+							return target.sqliteFolded == name.sqliteFolded
 						}
 						return false
 					}
@@ -414,17 +485,20 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 		}
 		return typeName
 	}
-	func getColumnDefinition(_ column: TableStructure.Column) throws -> String {
+	// A @ForeignKey column's FOREIGN KEY clause is collected into `extraCreate`, or with
+	// `foreignKeysInline` (for ADD COLUMN) appended to the definition as a column constraint.
+	func getColumnDefinition(_ column: TableStructure.Column, foreignKeysInline: Bool = false) throws -> String {
 		let name = try quote(identifier: column.name)
 		let type = column.type
 		let typeName = try getTypeName(type)
 		var addendum = ""
+		var references: [String] = []
 		for prop in column.properties {
 			switch prop {
 			case .primaryKey:
 				addendum += " PRIMARY KEY"
 			case .foreignKey(let table, let column, let onDelete, let onUpdate):
-				var str = "FOREIGN KEY(\(name)) REFERENCES \(try quote(identifier: table))(\(try quote(identifier: column)))"
+				var str = "REFERENCES \(try quote(identifier: table))(\(try quote(identifier: column)))"
 				let scenarios = [(" ON DELETE ", onDelete), (" ON UPDATE ", onUpdate)]
 				for (scenario, action) in scenarios {
 					str += scenario
@@ -441,13 +515,17 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 						str += "CASCADE"
 					}
 				}
-				extraCreate.append(str)
+				if foreignKeysInline {
+					references.append(str)
+				} else {
+					extraCreate.append("FOREIGN KEY(\(name)) \(str)")
+				}
 			}
 		}
 		if !column.properties.contains(.primaryKey) && !column.optional {
 			addendum += " NOT NULL"
 		}
-		return "\(name) \(typeName)\(addendum)"
+		return (["\(name) \(typeName)\(addendum)"] + references).joined(separator: " ")
 	}
 	func getBinding(for expr: CRUDExpression) throws -> String {
 		bindings.append(("?", expr))

@@ -56,6 +56,59 @@ struct TwoSubTablesBeta: Codable {
     @ForeignKey(TwoSubTablesParent.self, onDelete: cascade, onUpdate: cascade) var betaParentId: Int
 }
 
+// An existing table reconciled to add an optional @ForeignKey column.
+struct AddedForeignKeyChild: Codable, TableNameProvider {
+    static let tableName = "added_fk_child"
+    @PrimaryKey var id: Int
+    let name: String?
+    @ForeignKey(PerfectSQLiteTests.TestTable1.self, onDelete: cascade, onUpdate: cascade) var parentId: Int?
+}
+
+struct ReconcileParent: Codable {
+    @PrimaryKey var id: Int
+    let name: String?
+    let kids: [ReconcileKid]?
+}
+
+struct ReconcileKid: Codable {
+    @PrimaryKey var id: Int
+    @ForeignKey(ReconcileParent.self, onDelete: cascade, onUpdate: cascade) var parentId: Int
+    let note: String?
+}
+
+// ReconcileKid without its `note` column.
+struct ReducedReconcileKid: Codable, TableNameProvider {
+    static let tableName = ReconcileKid.CRUDTableName
+    @PrimaryKey var id: Int
+    @ForeignKey(ReconcileParent.self, onDelete: cascade, onUpdate: cascade) var parentId: Int
+}
+
+struct RestrictParent: Codable {
+    @PrimaryKey var id: Int
+    let kids: [RestrictKid]?
+}
+
+struct RestrictKid: Codable {
+    @PrimaryKey var id: Int
+    @ForeignKey(RestrictParent.self, onDelete: restrict, onUpdate: restrict) var parentId: Int
+}
+
+struct CaseChangedTable: Codable, TableNameProvider {
+    static let tableName = "case_changed"
+    @PrimaryKey var id: Int
+    let name: String?
+    let added: Int?
+}
+
+struct UnicodeCaseTable: Codable, TableNameProvider {
+    enum CodingKeys: String, CodingKey {
+        case id, cafe = "CAFÉ"
+    }
+    static let tableName = "unicode_case"
+    @PrimaryKey var id: Int
+    let cafe: String?
+}
+
 struct ForeignKeyInfo: Equatable {
     let table: String
     let from: String
@@ -188,5 +241,97 @@ extension PerfectSQLiteTests {
         #expect(try foreignKeys(db, of: parent).isEmpty)
         #expect(try foreignKeys(db, of: TwoSubTablesAlpha.CRUDTableName) == [.init(table: parent, from: "alphaParentId", onDelete: "CASCADE")])
         #expect(try foreignKeys(db, of: TwoSubTablesBeta.CRUDTableName) == [.init(table: parent, from: "betaParentId", onDelete: "CASCADE")])
+    }
+
+    func intValues(_ db: Database<DBConfiguration>, _ sql: String) throws -> [Int?] {
+        var ret: [Int?] = []
+        try db.configuration.sqlite.forEachRow(statement: sql) { stmt, _ in
+            ret.append(stmt.isNull(position: 0) ? nil : stmt.columnInt(position: 0))
+        }
+        return ret
+    }
+
+    // A @ForeignKey column added by reconciling gets its FOREIGN KEY.
+    @Test func reconcileAddingForeignKeyColumnKeepsConstraint() throws {
+        let db = try getTestDB()
+        try db.sql("CREATE TABLE added_fk_child (id INT PRIMARY KEY, name TEXT)")
+        try db.sql("INSERT INTO added_fk_child VALUES (1, 'one'), (2, 'two')")
+        try db.create(AddedForeignKeyChild.self, policy: .reconcileTable)
+        #expect(try foreignKeys(db, of: "added_fk_child") == [.init(table: TestTable1.tableName, from: "parentId", onDelete: "CASCADE")])
+        #expect(try intValues(db, "SELECT parentId FROM added_fk_child ORDER BY id") == [nil, nil])
+        try db.sql("UPDATE added_fk_child SET parentId = 2 WHERE id = 1")
+        #expect(throws: (any Error).self) {
+            try db.sql("UPDATE added_fk_child SET parentId = 99 WHERE id = 2")
+        }
+        try db.table(TestTable1.self).where(\TestTable1.id == 2).delete()
+        #expect(try intValues(db, "SELECT id FROM added_fk_child") == [2])
+    }
+
+    // Reconciling an existing table creates its missing sub-tables.
+    @Test func reconcileCreatesMissingSubTables() throws {
+        let db = try getDB()
+        try db.create(ReconcileParent.self, policy: .shallow)
+        #expect(try !tableNames(db).contains(ReconcileKid.CRUDTableName))
+        try db.create(ReconcileParent.self, policy: .reconcileTable)
+        #expect(try columnNames(db, of: ReconcileKid.CRUDTableName) == ["id", "parentId", "note"])
+        #expect(try foreignKeys(db, of: ReconcileKid.CRUDTableName) == [.init(table: ReconcileParent.CRUDTableName, from: "parentId", onDelete: "CASCADE")])
+    }
+
+    // Reconciling an existing table reconciles its existing sub-tables.
+    @Test func reconcileReconcilesExistingSubTables() throws {
+        let db = try getDB()
+        try db.create(ReconcileParent.self, policy: .shallow)
+        try db.create(ReducedReconcileKid.self, policy: .shallow)
+        try db.sql("INSERT INTO \(ReconcileParent.CRUDTableName) VALUES (1, 'one')")
+        try db.sql("INSERT INTO \(ReconcileKid.CRUDTableName) VALUES (1, 1)")
+        try db.create(ReconcileParent.self, policy: .reconcileTable)
+        #expect(try columnNames(db, of: ReconcileKid.CRUDTableName) == ["id", "parentId", "note"])
+        #expect(try db.table(ReconcileKid.self).count() == 1)
+    }
+
+    // .dropTable drops a table's sub-tables before it: with foreign_keys on, dropping a parent
+    // first fails while a RESTRICT child has rows.
+    @Test func dropTableDropsSubTablesFirst() throws {
+        let db = try getDB()
+        try db.create(RestrictParent.self, policy: .dropTable)
+        try db.sql("INSERT INTO \(RestrictParent.CRUDTableName) VALUES (1)")
+        try db.sql("INSERT INTO \(RestrictKid.CRUDTableName) VALUES (1, 1)")
+        try db.create(RestrictParent.self, policy: .dropTable)
+        #expect(try db.table(RestrictParent.self).count() == 0)
+        #expect(try db.table(RestrictKid.self).count() == 0)
+        #expect(try foreignKeys(db, of: RestrictKid.CRUDTableName) == [.init(table: RestrictParent.CRUDTableName, from: "parentId", onDelete: "RESTRICT")])
+    }
+
+    // A column whose name differs only in case is the same column: its data is kept, and it's
+    // renamed to the model's spelling so rows decode.
+    @Test func reconcileMatchesColumnNamesIgnoringCase() throws {
+        let db = try getDB()
+        // A column to remove, so the table is rebuilt.
+        try db.sql("CREATE TABLE case_changed (ID INT PRIMARY KEY, Name TEXT, gone INT)")
+        try db.sql("INSERT INTO case_changed VALUES (1, 'one', 0)")
+        try db.create(CaseChangedTable.self, policy: .reconcileTable)
+        #expect(try columnNames(db, of: "case_changed") == ["id", "name", "added"])
+        #expect(try db.table(CaseChangedTable.self).first()?.name == "one")
+        // Nothing to remove: the columns are renamed in place.
+        try db.sql("DROP TABLE case_changed")
+        try db.sql("CREATE TABLE case_changed (ID INT PRIMARY KEY, Name TEXT)")
+        try db.sql("INSERT INTO case_changed VALUES (1, 'one')")
+        try db.create(CaseChangedTable.self, policy: .reconcileTable)
+        #expect(try columnNames(db, of: "case_changed") == ["id", "name", "added"])
+        #expect(try db.table(CaseChangedTable.self).first()?.name == "one")
+    }
+
+    // SQLite folds only ASCII letters, so "café" and "CAFÉ" are different columns.
+    @Test func reconcileFoldsOnlyASCIICase() throws {
+        let db = try getDB()
+        try db.sql("CREATE TABLE unicode_case (id INT PRIMARY KEY, \"café\" TEXT, \"CAFÉ\" TEXT)")
+        try db.sql("INSERT INTO unicode_case VALUES (1, 'lower', 'upper')")
+        try db.create(UnicodeCaseTable.self, policy: .reconcileTable)
+        #expect(try columnNames(db, of: "unicode_case") == ["id", "CAFÉ"])
+        #expect(try db.table(UnicodeCaseTable.self).first()?.cafe == "upper")
+        try db.sql("DROP TABLE unicode_case")
+        try db.sql("CREATE TABLE unicode_case (id INT PRIMARY KEY, \"café\" TEXT)")
+        try db.create(UnicodeCaseTable.self, policy: .reconcileTable)
+        #expect(try columnNames(db, of: "unicode_case") == ["id", "CAFÉ"])
     }
 }
