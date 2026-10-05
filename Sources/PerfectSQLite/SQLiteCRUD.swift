@@ -195,25 +195,14 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 			let removeColumns: [String] = existingColumnMap.keys.filter { newColumnMap[$0] == nil }
 			
 			if !removeColumns.isEmpty {
-				let nameQ = try quote(identifier: forTable.tableName)
-				let tempNameQ = try quote(identifier: "temp_\(forTable.tableName)_temp")
 				let sharedColumns = existingColumns.map { $0.name }.filter { !removeColumns.contains($0) }
-				let sharedColumnsQ = try sharedColumns.map { try quote(identifier: $0) }.joined(separator: ",")
-				sub += [ // sqlite does not have 'drop column'
-					"ALTER TABLE \(nameQ) RENAME TO \(tempNameQ)",
-					"""
-					CREATE TABLE IF NOT EXISTS \(nameQ) (
-					\(try forTable.columns.map { try getColumnDefinition($0) }.joined(separator: ",\n\t"))
-					)
-					""",
-					"""
-					INSERT INTO \(nameQ) (\(sharedColumnsQ))
-					SELECT \(sharedColumnsQ)
-					FROM \(tempNameQ)
-					""",
-					"DROP TABLE \(tempNameQ)"
-				]
+				try rebuildTable(forTable, copying: sharedColumns)
 			} else {
+				// getColumnDefinition(_:) collects FOREIGN KEY clauses; don't let these reach
+				// the next table's CREATE.
+				defer {
+					extraCreate = []
+				}
 				sub += try addColumns.compactMap { newColumnMap[$0] }.map {
 					let nameType = try getColumnDefinition($0)
 					return """
@@ -226,7 +215,7 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 			sub += [
 			"""
 			CREATE TABLE IF NOT EXISTS \(try quote(identifier: forTable.tableName)) (
-				\((try forTable.columns.map { try getColumnDefinition($0) } + extraCreate).joined(separator: ",\n\t"))
+				\(try getTableDefinition(forTable))
 			)
 			"""]
 		}
@@ -237,7 +226,121 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 		}
 		return sub
 	}
-	
+
+	// The column definitions plus the FOREIGN KEY clauses getColumnDefinition(_:) collects for
+	// them. It starts and ends with no clauses collected, so one table's clauses can't end up
+	// in another table's CREATE.
+	private func getTableDefinition(_ table: TableStructure) throws -> String {
+		extraCreate = []
+		defer {
+			extraCreate = []
+		}
+		let columnDefs = try table.columns.map { try getColumnDefinition($0) }
+		return (columnDefs + extraCreate).joined(separator: ",\n\t")
+	}
+
+	// Removes columns by rebuilding the table, since ALTER TABLE DROP COLUMN refuses PRIMARY
+	// KEY, UNIQUE, indexed and FOREIGN KEY columns. It follows the procedure in
+	// https://www.sqlite.org/lang_altertable.html#otheralter: the new table is created under a
+	// temporary name, filled, the old table dropped and the new one renamed into its place,
+	// with foreign_keys off. Renaming the old table out of the way instead (as this used to)
+	// rewrites the FOREIGN KEY references of other tables to the temporary name, and dropping
+	// it then deletes their rows through ON DELETE CASCADE.
+	//
+	// It runs the statements itself instead of returning them, so it can roll the rebuild back
+	// and turn foreign_keys back on if a step fails, and fail on rows `PRAGMA
+	// foreign_key_check` reports. The old table's indexes and triggers are dropped with it, as
+	// they were before.
+	private func rebuildTable(_ table: TableStructure, copying sharedColumns: [String]) throws {
+		let name = table.tableName
+		let nameQ = try quote(identifier: name)
+		let tempNameQ = try quote(identifier: "temp_\(name)_temp")
+		let columnList = try sharedColumns.map { try quote(identifier: $0) }.joined(separator: ",")
+		let statements = [
+			// Not IF NOT EXISTS: a table left with this name holds someone's data.
+			"""
+			CREATE TABLE \(tempNameQ) (
+				\(try getTableDefinition(table))
+			)
+			""",
+			"""
+			INSERT INTO \(tempNameQ) (\(columnList))
+			SELECT \(columnList)
+			FROM \(nameQ)
+			""",
+			"DROP TABLE \(nameQ)",
+			"ALTER TABLE \(tempNameQ) RENAME TO \(nameQ)"
+		]
+		var foreignKeysSetting = 0
+		try database.forEachRow(statement: "PRAGMA foreign_keys") { stmt, _ in
+			foreignKeysSetting = stmt.columnInt(position: 0)
+		}
+		let foreignKeysOn = foreignKeysSetting != 0
+		// The other tables with a FOREIGN KEY referencing this one.
+		var referencingTables: [String] = []
+		if foreignKeysOn {
+			try database.forEachRow(statement: """
+				SELECT DISTINCT m.name FROM sqlite_master AS m, pragma_foreign_key_list(m.name) AS f
+				WHERE m.type = 'table' AND lower(m.name) <> lower(?1) AND lower(f."table") = lower(?1)
+				""", doBindings: { try $0.bind(position: 1, name) }) { stmt, _ in
+				referencingTables.append(stmt.columnText(position: 0))
+			}
+			// PRAGMA foreign_keys does nothing inside a transaction. There, dropping the old
+			// table deletes its rows first, firing the ON DELETE actions of every table
+			// referencing it, the new table included when it references itself.
+			if sqlite3_get_autocommit(database.sqlite3) == 0 {
+				let referencesItself = table.columns.contains { column in
+					column.properties.contains {
+						if case .foreignKey(let target, _, _, _) = $0 {
+							return target.lowercased() == name.lowercased()
+						}
+						return false
+					}
+				}
+				if referencesItself || !referencingTables.isEmpty {
+					throw SQLiteCRUDError("Can't remove columns from \(name) inside a transaction while foreign_keys is on, because a FOREIGN KEY references it.")
+				}
+			} else {
+				try database.execute(statement: "PRAGMA foreign_keys = OFF")
+			}
+		}
+		defer {
+			if foreignKeysOn {
+				do {
+					try database.execute(statement: "PRAGMA foreign_keys = ON")
+				} catch {
+					CRUDLogging.log(.error, "Could not turn foreign_keys back on after rebuilding \(name): \(error)")
+				}
+			}
+		}
+		try database.execute(statement: "SAVEPOINT perfect_crud_rebuild")
+		do {
+			for stat in statements {
+				CRUDLogging.log(.query, stat)
+				try database.execute(statement: stat)
+			}
+			if foreignKeysOn {
+				// The rebuilt table as a child, then the tables referencing it. Those fail with
+				// "foreign key mismatch" if a column they reference was removed (or lost the
+				// PRIMARY KEY or UNIQUE index it needs).
+				var violations = 0
+				for checked in [name] + referencingTables {
+					try database.forEachRow(statement: "PRAGMA foreign_key_check(\(try quote(identifier: checked)))") { _, _ in
+						violations += 1
+					}
+				}
+				if violations > 0 {
+					throw SQLiteCRUDError("Removing columns from \(name) would leave \(violations) row(s) violating FOREIGN KEY constraints.")
+				}
+			}
+			try database.execute(statement: "RELEASE perfect_crud_rebuild")
+		} catch {
+			try? database.execute(statement: "ROLLBACK TO perfect_crud_rebuild")
+			try? database.execute(statement: "RELEASE perfect_crud_rebuild")
+			throw error
+		}
+	}
+
 	func getExistingColumnData(forTable: String) -> [SQLiteColumnInfo]? {
 		do {
 			let prep = try database.prepare(statement: "PRAGMA table_info(\(try quote(identifier: forTable)))")
