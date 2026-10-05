@@ -66,6 +66,14 @@ and add `"PerfectSQLite"` to your target's `dependencies` array. You need the Sw
 
   Without it the build fails with `'sqlite3.h' file not found`, and SwiftPM suggests the package to install.
 
+## Double-quoted strings are identifiers
+
+Every connection opened by `SQLite(...)` or `SQLiteDatabaseConfiguration(...)` turns off SQLite's [double-quoted string literal](https://www.sqlite.org/quirks.html#dblquote) fallback, which the macOS SDK and Ubuntu's `libsqlite3` both leave on. With the fallback on, a double-quoted name that matches no column silently becomes a string: `DELETE FROM t WHERE "nmae" = 'nmae'` deletes every row instead of failing. Perfect-CRUD's Dynamic API double-quotes caller-supplied field names, so a misspelled field name in a Dynamic delete or update hit every row (or silently none).
+
+Now `"..."` is always an identifier and an unknown one throws `no such column`. Write string literals with single quotes (`WHERE name = 'bob'`), or better, bind them. This also affects views and triggers already stored in a database: one written with `"..."` strings now fails with `no such column` when it's used (an `INSERT` that fires such a trigger fails too). Table `DEFAULT`/`CHECK` clauses and partial-index `WHERE`s are still read leniently. For legacy SQL or schemas like that, opt back in per connection with `SQLite(path, doubleQuotedStrings: true)` or `SQLiteDatabaseConfiguration(path, doubleQuotedStrings: true)`; the generic `init(url:name:…)` always turns it off. SQLite older than 3.29 has no switch, so there the fallback stays on.
+
+This stops misspelled names from failing silently. It doesn't make Dynamic field names safe to take from untrusted callers: a caller who picks both the field and the value can still match every row with real columns (`rowid > 0`, `name contains ""`), so checking which fields a caller may use is still the application's job.
+
 ## Usage Example — raw SQLite API
 
 Let's assume you'd like to host a blog in Swift. First we need tables. Opening `./db/database` creates the SQLite file if it doesn't exist (the `db` directory must already exist), so we simply need to connect and add the tables.

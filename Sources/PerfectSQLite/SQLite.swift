@@ -3,6 +3,7 @@ import SQLite3
 #else
 import PerfectCSQLite
 #endif
+import PerfectSQLiteShim
 
 public struct SQLiteError: Error, CustomStringConvertible {
     public let code: Int
@@ -18,7 +19,25 @@ public class SQLite {
     let path: String
     var sqlite3 = OpaquePointer(bitPattern: 0)
 
-    public init(_ path: String, readOnly: Bool = false, busyTimeoutMillis: Int = 600000) throws {
+    /// Opens (or creates) the database at `path`, with SQLite's double-quoted
+    /// string literal fallback off (see `init(_:readOnly:busyTimeoutMillis:doubleQuotedStrings:)`).
+    public convenience init(_ path: String, readOnly: Bool = false, busyTimeoutMillis: Int = 600000) throws {
+        try self.init(path, readOnly: readOnly, busyTimeoutMillis: busyTimeoutMillis, doubleQuotedStrings: false)
+    }
+
+    /// Opens (or creates) the database at `path`.
+    ///
+    /// `doubleQuotedStrings` controls SQLite's double-quoted string literal
+    /// misfeature ("DQS"). When it is on, a double-quoted name that matches
+    /// no column is silently read as a string literal, so a misspelled
+    /// `WHERE "nmae" = 'nmae'` is true for every row instead of an error.
+    /// The other initializer turns it off: `"..."` is always an identifier,
+    /// and string literals need single quotes. Pass `true` for legacy SQL
+    /// that uses `"..."` as strings, including views and triggers already
+    /// stored in the database, which otherwise fail with "no such column"
+    /// when used. SQLite older than 3.29 can't turn it off.
+    public init(_ path: String, readOnly: Bool = false, busyTimeoutMillis: Int = 600000,
+                doubleQuotedStrings: Bool) throws {
         self.path = path
         let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
         let res = sqlite3_open_v2(path, &self.sqlite3, flags, nil)
@@ -26,6 +45,9 @@ public class SQLite {
             throw SQLiteError(code: Int(res), description: "Unable to open database \(path)")
         }
         sqlite3_busy_timeout(self.sqlite3, Int32(busyTimeoutMillis))
+        // Best effort: fails only when the library has no switch (SQLite < 3.29),
+        // where the fallback is always on anyway.
+        _ = perfect_sqlite3_set_dqs(self.sqlite3, doubleQuotedStrings ? 1 : 0)
     }
 
     public func close() {

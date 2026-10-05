@@ -58,7 +58,9 @@ extension PerfectSQLiteTests {
     }
 
     // On main each of these names closed the quoted identifier and added SQL,
-    // turning a one-row DELETE into a delete of the whole table.
+    // turning a one-row DELETE into a delete of the whole table. Escaped, each
+    // is one unknown identifier, and with the double-quoted string fallback
+    // off (DoubleQuotedStringTests) that throws instead of becoming a string.
     @Test func dynamicNamesCannotInjectSQL() throws {
         let db = try getQuoteDB()
         try db.sql(#"CREATE TABLE "quote_victim" ("id" INTEGER PRIMARY KEY, "name" TEXT)"#)
@@ -67,27 +69,27 @@ extension PerfectSQLiteTests {
             try db.sql(#"SELECT COUNT(*) AS c FROM "quote_victim""#, Count.self)[0].c
         }
         // Field name: `"id" = "id" OR "id" = ?` would match every row.
-        _ = try? db.mutate(DynamicMutation(
+        #expect(throws: SQLiteError.self) { try db.mutate(DynamicMutation(
             action: .delete, table: "quote_victim",
-            predicates: [.init(field: #"id" = "id" OR "id"#, comparison: .equal, value: .int(1))]))
+            predicates: [.init(field: #"id" = "id" OR "id"#, comparison: .equal, value: .int(1))])) }
         #expect(try count() == 3)
         // Table name: `DELETE FROM "quote_victim" --" WHERE ...` drops the WHERE.
-        _ = try? db.mutate(DynamicMutation(
+        #expect(throws: SQLiteError.self) { try db.mutate(DynamicMutation(
             action: .delete, table: #"quote_victim" --"#,
-            predicates: [.init(field: "id", comparison: .equal, value: .int(1))]))
+            predicates: [.init(field: "id", comparison: .equal, value: .int(1))])) }
         #expect(try count() == 3)
         // Value key: `SET "id" = 99, "name" = ?` would rewrite a second column.
-        _ = try? db.mutate(DynamicMutation(
+        #expect(throws: SQLiteError.self) { try db.mutate(DynamicMutation(
             action: .update, table: "quote_victim",
             values: [#"id" = 99, "name"#: .string("z")],
-            predicates: [.init(field: "id", comparison: .equal, value: .int(1))]))
+            predicates: [.init(field: "id", comparison: .equal, value: .int(1))])) }
         #expect(try db.sql(#"SELECT COUNT(*) AS c FROM "quote_victim" WHERE "id" = 99"#, Count.self)[0].c == 0)
         // A combining mark after the quote: the name must stay one identifier.
         // (Escaping with replacingOccurrences left that `"` bare; the quote()
         // test above is what catches it.)
-        _ = try? db.mutate(DynamicMutation(
+        #expect(throws: SQLiteError.self) { try db.mutate(DynamicMutation(
             action: .delete, table: "quote_victim\"\u{301} --",
-            predicates: [.init(field: "id", comparison: .equal, value: .int(1))]))
+            predicates: [.init(field: "id", comparison: .equal, value: .int(1))])) }
         #expect(try count() == 3)
         // The same table name works as a plain identifier when the table exists.
         try db.sql(#"CREATE TABLE "quote_victim"" --" ("id" INTEGER PRIMARY KEY)"#)
