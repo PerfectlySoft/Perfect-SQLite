@@ -14,7 +14,7 @@
 
 This project provides a Swift wrapper around the SQLite 3 C library, plus a [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) database driver built on top of it.
 
-**Modernized for Swift 6.** Requires **swift-tools-version 6.2** and builds under full **Swift 6 language mode** (strict concurrency checking on for both the library and test targets). Supports **macOS 12+** and **iOS 15+** (`platforms: [.macOS(.v12), .iOS(.v15)]`) and **Linux** (tested with Swift 6.2.4, 6.3.2 and 6.4 on Ubuntu 24.04). CI runs the tests on macOS, Linux and the iOS Simulator. tvOS/watchOS/visionOS aren't declared or tested.
+**Modernized for Swift 6.** Requires **swift-tools-version 6.2** and builds under full **Swift 6 language mode** (strict concurrency checking on for both the library and test targets). Supports **macOS 12+** and **iOS 15+** (`platforms: [.macOS(.v12), .iOS(.v15)]`) and **Linux** (tested with Swift 6.2.4, 6.3.2 and 6.4 on Ubuntu 24.04). CI runs the tests on Linux (Swift 6.2 and 6.4), macOS (Xcode 26.0.1 and 26.6) and the iOS Simulator. tvOS/watchOS/visionOS aren't declared or tested.
 
 The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tree/legacy) branch.
 
