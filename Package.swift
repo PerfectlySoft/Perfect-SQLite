@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "PerfectSQLite",
-    platforms: [.macOS(.v12)],
+    platforms: [.macOS(.v12), .iOS(.v15)],
     products: [
         .library(name: "PerfectSQLite", targets: ["PerfectSQLite"]),
     ],
