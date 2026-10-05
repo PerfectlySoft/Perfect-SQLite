@@ -353,8 +353,19 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 	// Standard SQL identifier quoting: an embedded `"` is doubled, so a name
 	// can't end the quoted identifier early (the Dynamic API passes
 	// caller-supplied table and field names through here).
+	//
+	// Escaped per Unicode scalar, not with replacingOccurrences: that matches
+	// whole Characters, so a `"` followed by a combining mark (U+0301) would
+	// not match and would reach the SQL unescaped.
 	func quote(identifier: String) throws -> String {
-		return "\"\(identifier.replacingOccurrences(of: "\"", with: "\"\""))\""
+		var escaped = String.UnicodeScalarView()
+		for scalar in identifier.unicodeScalars {
+			if scalar == "\"" {
+				escaped.append(scalar)
+			}
+			escaped.append(scalar)
+		}
+		return "\"\(String(escaped))\""
 	}
 }
 
