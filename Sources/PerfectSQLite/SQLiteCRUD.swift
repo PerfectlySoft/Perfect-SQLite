@@ -198,6 +198,7 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 				let nameQ = try quote(identifier: forTable.tableName)
 				let tempNameQ = try quote(identifier: "temp_\(forTable.tableName)_temp")
 				let sharedColumns = existingColumns.map { $0.name }.filter { !removeColumns.contains($0) }
+				let sharedColumnsQ = try sharedColumns.map { try quote(identifier: $0) }.joined(separator: ",")
 				sub += [ // sqlite does not have 'drop column'
 					"ALTER TABLE \(nameQ) RENAME TO \(tempNameQ)",
 					"""
@@ -206,8 +207,8 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 					)
 					""",
 					"""
-					INSERT INTO \(nameQ) (\(sharedColumns.joined(separator: ",")))
-					SELECT \(sharedColumns.joined(separator: ","))
+					INSERT INTO \(nameQ) (\(sharedColumnsQ))
+					SELECT \(sharedColumnsQ)
 					FROM \(tempNameQ)
 					""",
 					"DROP TABLE \(tempNameQ)"
@@ -239,7 +240,7 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 	
 	func getExistingColumnData(forTable: String) -> [SQLiteColumnInfo]? {
 		do {
-			let prep = try database.prepare(statement: "PRAGMA table_info(\"\(forTable)\")")
+			let prep = try database.prepare(statement: "PRAGMA table_info(\(try quote(identifier: forTable)))")
 			let exeDelegate = SQLiteExeDelegate(database, stat: prep)
 			var ret: [SQLiteColumnInfo] = []
 			while try exeDelegate.hasNext() {
@@ -311,7 +312,7 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 		return typeName
 	}
 	func getColumnDefinition(_ column: TableStructure.Column) throws -> String {
-		let name = column.name
+		let name = try quote(identifier: column.name)
 		let type = column.type
 		let typeName = try getTypeName(type)
 		var addendum = ""
@@ -320,7 +321,7 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 			case .primaryKey:
 				addendum += " PRIMARY KEY"
 			case .foreignKey(let table, let column, let onDelete, let onUpdate):
-				var str = "FOREIGN KEY(\(name)) REFERENCES \(table)(\(column))"
+				var str = "FOREIGN KEY(\(name)) REFERENCES \(try quote(identifier: table))(\(try quote(identifier: column)))"
 				let scenarios = [(" ON DELETE ", onDelete), (" ON UPDATE ", onUpdate)]
 				for (scenario, action) in scenarios {
 					str += scenario
@@ -349,8 +350,22 @@ class SQLiteGenDelegate: SQLGenDelegate, @unchecked Sendable {
 		bindings.append(("?", expr))
 		return "?"
 	}
+	// Standard SQL identifier quoting: an embedded `"` is doubled, so a name
+	// can't end the quoted identifier early (the Dynamic API passes
+	// caller-supplied table and field names through here).
+	//
+	// Escaped per Unicode scalar, not with replacingOccurrences: that matches
+	// whole Characters, so a `"` followed by a combining mark (U+0301) would
+	// not match and would reach the SQL unescaped.
 	func quote(identifier: String) throws -> String {
-		return "\"\(identifier)\""
+		var escaped = String.UnicodeScalarView()
+		for scalar in identifier.unicodeScalars {
+			if scalar == "\"" {
+				escaped.append(scalar)
+			}
+			escaped.append(scalar)
+		}
+		return "\"\(String(escaped))\""
 	}
 }
 
