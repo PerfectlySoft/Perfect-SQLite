@@ -23,7 +23,7 @@ The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tre
 `Sources/PerfectSQLite` contains two files:
 
 - **`SQLite.swift`** — a thin, synchronous Swift wrapper around the SQLite3 C API: the `SQLite` class (open/close/prepare/execute/`forEachRow`/transactions) and `SQLiteStmt` (bind-by-position/name, column reading).
-- **`SQLiteCRUD.swift`** — roughly half the package's source — implements the integration that lets [Perfect-CRUD](../Perfect-CRUD)'s typed query builder target a SQLite database: `SQLiteCRUDRowReader` (a `KeyedDecodingContainer` bridge from SQLite columns to `Codable` types), `SQLiteGenDelegate`/`SQLiteExeDelegate` (PerfectCRUD's `SQLGenDelegate`/`SQLExeDelegate`), and `SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol`.
+- **`SQLiteCRUD.swift`** — about two-thirds of the package's source — implements the integration that lets [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD)'s typed query builder target a SQLite database: `SQLiteCRUDRowReader` (a `KeyedDecodingContainer` bridge from SQLite columns to `Codable` types), `SQLiteGenDelegate`/`SQLiteExeDelegate` (PerfectCRUD's `SQLGenDelegate`/`SQLExeDelegate`), and `SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol`.
 
 Both `SQLite` and `SQLiteStmt` (and the CRUD delegate classes) are marked `@unchecked Sendable` rather than being actors — there is no async/await anywhere in this module. This is a manual Sendable opt-out around raw `OpaquePointer`/mutable C-backed state: none of these types are internally thread-safe, so callers are responsible for serializing their own access to a given `SQLite`/`SQLiteStmt` instance.
 
@@ -41,9 +41,9 @@ It depends on **Perfect-CRUD** (product `PerfectCRUD`) for the ORM integration l
 
 ## Where this fits
 
-This package is real, tested, working code — it is one of the four backend session drivers consumed
-by **Perfect-Session** (`SQLiteSessionDriver.swift` does `import PerfectSQLite` directly and uses
-the CRUD integration above).
+This package is real, tested, working code. It backs one of the five session drivers in
+**Perfect-Session** (`SQLiteSessionDriver.swift` imports `PerfectSQLite` and uses the raw `SQLite`
+API below).
 
 ## Building
 
@@ -57,7 +57,7 @@ dependencies: [
 
 and add `"PerfectSQLite"` to your target's `dependencies` array. You need the Swift 6.2 toolchain (or newer).
 
-- **macOS:** SQLite ships with the macOS 12+ SDK; nothing else to install. If you hit `sqlite3.h file not found`, check that your active toolchain and SDK are selected correctly.
+- **macOS:** SQLite ships with the macOS 12+ SDK; nothing else to install. If the build fails on `PerfectCSQLite` (`no such module 'PerfectCSQLite'` or `unable to resolve module dependency: 'PerfectCSQLite'`), the SDK's `SQLite3` module wasn't found: check the selected toolchain and SDK (`xcode-select -p`, `xcrun --show-sdk-path`).
 - **Linux:** install the SQLite development package (`sqlite-devel` on Fedora/RHEL), e.g. on Debian/Ubuntu:
 
   ```bash
@@ -68,7 +68,7 @@ and add `"PerfectSQLite"` to your target's `dependencies` array. You need the Sw
 
 ## Usage Example — raw SQLite API
 
-Let's assume you'd like to host a blog in Swift. First we need tables. Assuming you've created an SQLite file `./db/database`, we simply need to connect and add the tables.
+Let's assume you'd like to host a blog in Swift. First we need tables. Opening `./db/database` creates the SQLite file if it doesn't exist (the `db` directory must already exist), so we simply need to connect and add the tables.
 
 ```swift
 let dbPath = "./db/database"
@@ -91,6 +91,7 @@ Next, we would need to add some content.
 let dbPath = "./db/database"
 let postTitle = "Test Title"
 let postContent = "Lorem ipsum dolor sit amet…"
+let featuredImageURI = "/images/test.png"
 
 do {
    let sqlite = try SQLite(dbPath)
@@ -98,18 +99,19 @@ do {
      sqlite.close()
    }
 
-   try sqlite.execute(statement: "INSERT INTO posts (post_title, post_content) VALUES (:1,:2)") {
+   try sqlite.execute(statement: "INSERT INTO posts (post_title, post_content, featured_image_uri) VALUES (?1,?2,?3)") {
      (stmt:SQLiteStmt) -> () in
 
      try stmt.bind(position: 1, postTitle)
      try stmt.bind(position: 2, postContent)
+     try stmt.bind(position: 3, featuredImageURI)
    }
  } catch {
-		//Handle Errors
+   //Handle Errors
  }
 ```
 
-Finally, we retrieve posts and post titles from an SQLite database full of blog content. Each row is appended to an array of dictionaries for use elsewhere.
+Finally, we retrieve the five newest posts. Each row is appended to an array of dictionaries for use elsewhere.
 
 ``` swift
 let dbPath = "./db/database"
@@ -121,7 +123,7 @@ do {
 			sqlite.close() // This makes sure we close our connection.
 		}
 	
-	let demoStatement = "SELECT post_title, post_content FROM posts ORDER BY id DESC LIMIT :1"
+	let demoStatement = "SELECT id, post_title, post_content FROM posts ORDER BY id DESC LIMIT ?1"
 	
 	try sqlite.forEachRow(statement: demoStatement, doBindings: {
 		
@@ -134,8 +136,8 @@ do {
 
         contentRows.append([
                 "id": statement.columnText(position: 0),
-                "second_field": statement.columnText(position: 1),
-                "third_field": statement.columnText(position: 2)
+                "post_title": statement.columnText(position: 1),
+                "post_content": statement.columnText(position: 2)
             ])
   }
 	
@@ -146,8 +148,28 @@ do {
 
 ## Usage — Perfect-CRUD integration
 
-For typed, Codable-based access instead of raw SQL, register a `SQLiteDatabaseConfiguration` with Perfect-CRUD's `Database` type and use its normal query-builder API (`table(...)`, `select()`, `insert(...)`, etc.) against a local SQLite file — this is the path `SQLiteCRUD.swift` implements, and the one Perfect-Session's `SQLiteSessionDriver` relies on. See `Sources/PerfectSQLite/SQLiteCRUD.swift` and the [Perfect-CRUD](../Perfect-CRUD) README for the CRUD API itself.
+For typed, Codable-based access instead of raw SQL, create a Perfect-CRUD `Database` with a `SQLiteDatabaseConfiguration` (its first argument is the database file path; by default it runs `PRAGMA foreign_keys = ON`) and use the normal query-builder API (`create`, `table(...)`, `insert(...)`, `where(...)`, `select()`, etc.). This is what `SQLiteCRUD.swift` implements.
+
+```swift
+import PerfectCRUD
+import PerfectSQLite
+
+struct Post: Codable {
+	let id: Int
+	let title: String
+}
+
+let db = Database(configuration: try SQLiteDatabaseConfiguration("./db/database"))
+try db.create(Post.self, policy: .reconcileTable)
+let posts = db.table(Post.self)
+try posts.insert(Post(id: 1, title: "Hello"))
+for post in try posts.where(\Post.id == 1).select() {
+	print(post.title)
+}
+```
+
+See `Sources/PerfectSQLite/SQLiteCRUD.swift` and the [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) README for the CRUD API itself.
 
 ## Further Information
 
-See `docs/` in this repository, or the [Perfect-CRUD](../Perfect-CRUD) package for the ORM layer this package integrates with.
+See `docs/` in this repository for the older generated API docs (raw `SQLite`/`SQLiteStmt` only), or the [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) package for the ORM layer this package integrates with.
