@@ -8,7 +8,7 @@ let package = Package(
         .library(name: "PerfectSQLite", targets: ["PerfectSQLite"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", branch: "main"),
+        .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "3.0.0"),
     ],
     targets: [
         // System SQLite for Linux, which has no SQLite3 module like Apple's SDK.
