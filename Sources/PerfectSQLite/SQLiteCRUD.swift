@@ -661,12 +661,50 @@ func sqliteDynamicValue(_ statement: SQLiteStmt, position: Int) -> DynamicValue 
 	return .string(statement.columnText(position: position))
 }
 
+extension SQLite {
+	// Prepares the first statement of `sql` and throws if another statement follows it.
+	// An SQLExeDelegate runs exactly one statement, and sqlite3_prepare_v2 stops after the
+	// first one, so `execute(DynamicSQL(..., allowsMultipleStatements: true))` used to run
+	// the first statement and silently drop the rest. Trailing whitespace, `;` and comments
+	// are fine: preparing them yields no statement.
+	func prepareSingle(statement sql: String) throws -> SQLiteStmt {
+		let utf8 = Array(sql.utf8CString)
+		return try utf8.withUnsafeBufferPointer { buf -> SQLiteStmt in
+			guard let base = buf.baseAddress else {
+				throw SQLiteCRUDError("Empty SQL statement.")
+			}
+			let length = Int32(buf.count - 1) // without the NUL
+			var first: OpaquePointer? = nil
+			var tail: UnsafePointer<CChar>? = nil
+			try checkRes(sqlite3_prepare_v2(sqlite3, base, length, &first, &tail))
+			let stmt = SQLiteStmt(db: sqlite3, stat: first)
+			// Look for a statement after the first. Preparing the rest is the only reliable way
+			// to skip comments; a later statement that fails to prepare (it might name a table
+			// the first one creates) is still a second statement.
+			while let rest = tail, rest < base + Int(length) {
+				var next: OpaquePointer? = nil
+				var nextTail: UnsafePointer<CChar>? = nil
+				let remaining = Int32(base + Int(length) - rest)
+				let res = sqlite3_prepare_v2(sqlite3, rest, remaining, &next, &nextTail)
+				if res != SQLITE_OK || next != nil {
+					sqlite3_finalize(next)
+					stmt.finalize()
+					throw SQLiteCRUDError("SQLite runs one statement at a time, but the SQL has more than one statement: \(sql)")
+				}
+				guard let nt = nextTail, nt > rest else { break }
+				tail = nt
+			}
+			return stmt
+		}
+	}
+}
+
 public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
 	public var sqlGenDelegate: SQLGenDelegate {
 		return SQLiteGenDelegate(sqlite)
 	}
 	public func sqlExeDelegate(forSQL sql: String) throws -> SQLExeDelegate {
-		let prep = try sqlite.prepare(statement: sql)
+		let prep = try sqlite.prepareSingle(statement: sql)
 		return SQLiteExeDelegate(sqlite, stat: prep)
 	}
 	public let name: String
