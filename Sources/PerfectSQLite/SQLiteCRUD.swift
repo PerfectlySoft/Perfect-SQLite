@@ -557,16 +557,30 @@ class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 	let database: SQLite
 	let statement: SQLiteStmt
 	let columnMap: SQLiteColumnMap
+	// The columns a Dynamic row gets, in result order.
+	let dynamicColumns: [(name: String, position: Int)]
 	init(_ db: SQLite, stat: SQLiteStmt) {
 		database = db
 		statement = stat
+		// When result columns share a name (`SELECT a.id, b.id`), the first one wins, as
+		// SQLite's own name lookup does. Dynamic rows are keyed case-insensitively
+		// (DynamicRow lowercases its keys, and CRUD 3.0.0 traps on keys that differ only in
+		// case), so there `id` and `ID` count as the same name too.
 		var m = SQLiteColumnMap()
+		var dynamic: [(name: String, position: Int)] = []
+		var dynamicSeen = Set<String>()
 		let count = statement.columnCount()
 		for i in 0..<count {
 			let name = statement.columnName(position: i)
-			m[name] = i
+			if m[name] == nil {
+				m[name] = i
+			}
+			if dynamicSeen.insert(name.lowercased()).inserted {
+				dynamic.append((name, i))
+			}
 		}
 		columnMap = m
+		dynamicColumns = dynamic
 	}
 	func bind(_ binds: Bindings, skip: Int) throws {
 		_ = try statement.reset()
@@ -589,7 +603,7 @@ class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 	}
 	func nextDynamicRow() throws -> DynamicRow? {
 		var values: [String: DynamicValue] = [:]
-		for (name, position) in columnMap {
+		for (name, position) in dynamicColumns {
 			values[name] = sqliteDynamicValue(statement, position: position)
 		}
 		return DynamicRow(values)
