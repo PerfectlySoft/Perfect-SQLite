@@ -14,9 +14,9 @@
 
 This project provides a Swift wrapper around the SQLite 3 C library, plus a [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) database driver built on top of it.
 
-**Modernized for Swift 6.** Requires **swift-tools-version 6.2** and builds under full **Swift 6 language mode** (strict concurrency checking on for both the library and test targets). Supports **macOS 12+** and **iOS 15+** (`platforms: [.macOS(.v12), .iOS(.v15)]`) and **Linux** (tested with Swift 6.2.4, 6.3.2 and 6.4 on Ubuntu 24.04). CI runs the tests on Linux (Swift 6.2 and 6.4), macOS (Xcode 26.0.1 and 26.6) and the iOS Simulator. tvOS/watchOS/visionOS aren't declared or tested.
+**Modernized for Swift 6.** Requires **swift-tools-version 6.2** and builds under full **Swift 6 language mode** (strict concurrency checking on for both the library and test targets). Supports **macOS 12+** and **iOS 15+** (`platforms: [.macOS(.v12), .iOS(.v15)]`) and **Linux** (tested with Swift 6.2.4, 6.3.2 and 6.4 on Ubuntu 24.04). It needs SQLite 3.29 or newer for every feature below (the macOS 12+/iOS 15+ SDKs and Ubuntu 24.04 have newer). CI runs the tests on Linux (Swift 6.2 and 6.4), macOS (Xcode 26.0.1 and 26.6) and the iOS Simulator. tvOS/watchOS/visionOS aren't declared or tested.
 
-The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tree/legacy) branch.
+The pre-Swift-6 version of this package (5.0.0) is preserved on the [`legacy`](../../tree/legacy) branch. See [Migrating from 5.x](#migrating-from-5x) when upgrading.
 
 ## What's in this package
 
@@ -33,7 +33,7 @@ This package has a single dependency:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", branch: "main"),
+    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "3.0.0"),
 ],
 ```
 
@@ -51,7 +51,7 @@ Add this project as a dependency in your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", branch: "main"),
+    .package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", from: "6.0.0"),
 ],
 ```
 
@@ -73,6 +73,18 @@ Every connection opened by `SQLite(...)` or `SQLiteDatabaseConfiguration(...)` t
 Now `"..."` is always an identifier and an unknown one throws `no such column`. Write string literals with single quotes (`WHERE name = 'bob'`), or better, bind them. This also affects views and triggers already stored in a database: one written with `"..."` strings now fails with `no such column` when it's used (an `INSERT` that fires such a trigger fails too). Table `DEFAULT`/`CHECK` clauses and partial-index `WHERE`s are still read leniently. For legacy SQL or schemas like that, opt back in per connection with `SQLite(path, doubleQuotedStrings: true)` or `SQLiteDatabaseConfiguration(path, doubleQuotedStrings: true)`; the generic `init(url:name:…)` always turns it off. SQLite older than 3.29 has no switch, so there the fallback stays on.
 
 This stops misspelled names from failing silently. It doesn't make Dynamic field names safe to take from untrusted callers: a caller who picks both the field and the value can still match every row with real columns (`rowid > 0`, `name contains ""`), so checking which fields a caller may use is still the application's job.
+
+## Migrating from 5.x
+
+6.0.0 is the Swift 6 rewrite of the package; 5.0.0 (2020) is on the `legacy` branch. The raw `SQLite`/`SQLiteStmt` API keeps its names and signatures, but these changes can affect you:
+
+- **Toolchain and platforms.** Swift tools 6.2 or newer; macOS 12+ (was 10.15+), iOS 15+ (newly declared). It depends on Perfect-CRUD 3.0.0, which has its own [breaking changes](https://github.com/PerfectlySoft/Perfect-CRUD/releases/tag/3.0.0).
+- **Linux uses the system SQLite.** The Perfect-sqlite3-support dependency is gone; install `libsqlite3-dev` (the `PerfectCSQLite` target finds it with `pkg-config`).
+- **Double-quoted strings are identifiers** (see above). Raw SQL that writes string literals as `"..."`, and views or triggers already stored that way, now fail with `no such column`. Switch to single quotes or bindings, or pass `doubleQuotedStrings: true`.
+- **`.reconcileTable` reaches sub-tables.** Creating or reconciling a table now also creates and reconciles its sub-tables on every run, not only on the first create. A sub-table whose type has fewer properties than the table has columns loses those columns, and a rebuild drops that table's own indexes. Pass `.shallow` to leave sub-tables alone. The tables aren't reconciled in one transaction, so a failing step leaves earlier tables changed. `.dropTable` drops children before parents.
+- **Reconcile rebuilds keep foreign keys.** Removing columns rebuilds the table with its FOREIGN KEYs and without cascading deletes into the tables that reference it. It throws if the result would violate a foreign key, or if it runs inside a transaction on a table another table references (`PRAGMA foreign_keys` can't be turned off there). An added `@ForeignKey` column gets a `REFERENCES` constraint, and a column whose name only changed case is renamed (SQLite 3.25+) instead of being dropped and re-added.
+- **Generated SQL quotes every identifier**, escaping embedded `"`. Table and column names that are keywords (such as `order`) now work.
+- **Dynamic API:** `select` and `execute` return rows, but `DynamicResult.affectedRows` is always 0 and `insertedID` is always nil on this connector. Use `SQLite.changes()` and `lastInsertRowID()` on the raw connection, or `Insert.lastInsertId()`, if you need them.
 
 ## Usage Example — raw SQLite API
 
