@@ -68,4 +68,37 @@ import PerfectCRUD
         }
         #expect(try count(db) == 3)
     }
+
+    // `.uint` binds as CRUD's `.uinteger64`; above Int64.max it used to trap in `Int(i)`.
+    @Test func unsignedValuesOutOfRangeThrow() throws {
+        let db = try makeDB()
+        let max = Int64.max
+        _ = try db.mutate(DynamicMutation(action: .insert, table: "dyn",
+                                          values: ["id": .int(4), "n": .uint(UInt64(max))]))
+        let row = try db.select(DynamicQuery(
+            table: "dyn", predicates: [.init(field: "id", comparison: .equal, value: .int(4))]))
+        #expect(row.rows.first?["n"] == .int(max))
+        let error = #expect(throws: SQLiteCRUDError.self) {
+            try db.mutate(DynamicMutation(action: .insert, table: "dyn",
+                                          values: ["id": .int(5), "n": .uint(UInt64.max)]))
+        }
+        #expect(error?.description.contains("doesn't fit") == true)
+        #expect(throws: SQLiteCRUDError.self) {
+            try db.execute(DynamicSQL(sql: "SELECT ? AS x", bindings: [.uint(UInt64(max) + 1)]))
+        }
+        // A typed comparison with a UInt binds `.uinteger`, which trapped the same way.
+        struct Unsigned: Codable, TableNameProvider {
+            static let tableName = "dyn_unsigned"
+            let id: Int
+            let u: UInt
+        }
+        try db.sql(#"CREATE TABLE "dyn_unsigned" ("id" INTEGER PRIMARY KEY, "u" INTEGER)"#)
+        try db.sql(#"INSERT INTO "dyn_unsigned" VALUES (1, 5)"#)
+        #expect(try db.table(Unsigned.self).where(\Unsigned.u < UInt(6)).count() == 1)
+        #expect(throws: SQLiteCRUDError.self) {
+            try db.table(Unsigned.self).where(\Unsigned.u < UInt.max).count()
+        }
+        // Typed UInt/UInt64 properties don't reach this code: CRUD 3.0.0's encoder converts
+        // them to `.integer(Int(value))` itself (and traps there above Int.max).
+    }
 }

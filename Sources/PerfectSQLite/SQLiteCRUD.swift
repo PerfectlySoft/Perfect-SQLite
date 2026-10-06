@@ -623,11 +623,11 @@ class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 		case .integer(let i):
 			try statement.bind(position: position, i)
 		case .uinteger(let i):
-			try statement.bind(position: position, Int(i))
+			try statement.bind(position: position, try sqliteInteger(i))
 		case .integer64(let i):
 			try statement.bind(position: position, Int(i))
 		case .uinteger64(let i):
-			try statement.bind(position: position, Int(i))
+			try statement.bind(position: position, try sqliteInteger(i))
 		case .integer32(let i):
 			try statement.bind(position: position, Int(i))
 		case .uinteger32(let i):
@@ -646,6 +646,14 @@ class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 			try statement.bind(position: position, b.map{UInt8(bitPattern: $0)})
 		}
 	}
+}
+
+// SQLite integers are signed 64-bit. `Int(i)` trapped on an unsigned value above Int64.max.
+func sqliteInteger<U: UnsignedInteger>(_ value: U) throws -> Int64 {
+	guard let i = Int64(exactly: value) else {
+		throw SQLiteCRUDError("Unsigned value \(value) doesn't fit in SQLite's 64-bit signed INTEGER.")
+	}
+	return i
 }
 
 func sqliteDynamicValue(_ statement: SQLiteStmt, position: Int) -> DynamicValue {
