@@ -721,7 +721,22 @@ extension SQLite {
 	}
 }
 
-public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
+// `@unchecked Sendable`, so it works with Perfect-CRUD's `DatabaseConnectionPool` and the
+// `…Async` / `fetchAll()` methods, which need `C: Sendable`. Its stored properties are a
+// `String` and the `SQLite` connection, a class around a raw `sqlite3*` with no locking of
+// its own (also `@unchecked Sendable`).
+//
+// What makes that safe is using one connection from one task at a time. The async methods
+// run the blocking work on Perfect-CRUD's dispatch queue while the caller waits, and the pool
+// checks a connection out to one caller at a time, so a connection moves between threads but
+// isn't used by two at once. SQLite allows that in its multi-thread mode, which is how the
+// Apple SDKs build it (`sqlite3_threadsafe()` is 2), and in serialized mode (1, Ubuntu's
+// libsqlite3). It isn't safe with a library built single-threaded (0). Connections are opened
+// without SQLITE_OPEN_FULLMUTEX, so under multi-thread mode, using one connection (or one
+// `Database` value) from two tasks at the same time is a data race in SQLite itself. Even
+// where the library serializes calls, two tasks would interleave each other's statements and
+// transactions. Give each concurrent task its own connection, for example from a pool.
+public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol, @unchecked Sendable {
 	public var sqlGenDelegate: SQLGenDelegate {
 		return SQLiteGenDelegate(sqlite)
 	}

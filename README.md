@@ -25,7 +25,21 @@ The pre-Swift-6 version of this package (5.0.0) is preserved on the [`legacy`](.
 - **`SQLite.swift`** — a thin, synchronous Swift wrapper around the SQLite3 C API: the `SQLite` class (open/close/prepare/execute/`forEachRow`/transactions) and `SQLiteStmt` (bind-by-position/name, column reading).
 - **`SQLiteCRUD.swift`** — about two-thirds of the package's source — implements the integration that lets [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD)'s typed query builder target a SQLite database: `SQLiteCRUDRowReader` (a `KeyedDecodingContainer` bridge from SQLite columns to `Codable` types), `SQLiteGenDelegate`/`SQLiteExeDelegate` (PerfectCRUD's `SQLGenDelegate`/`SQLExeDelegate`), and `SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol`.
 
-Both `SQLite` and `SQLiteStmt` (and the CRUD delegate classes) are marked `@unchecked Sendable` rather than being actors — there is no async/await anywhere in this module. This is a manual Sendable opt-out around raw `OpaquePointer`/mutable C-backed state: none of these types are internally thread-safe, so callers are responsible for serializing their own access to a given `SQLite`/`SQLiteStmt` instance.
+`SQLite`, `SQLiteStmt`, `SQLiteDatabaseConfiguration` and the CRUD delegate classes are marked `@unchecked Sendable` rather than being actors; this module has no async code of its own. None of them is internally thread-safe: use a connection from one task at a time. Moving a connection between threads is fine (SQLite is built multi-thread on Apple platforms and serialized on Ubuntu; a single-threaded build isn't supported), but using one connection, or one `Database` value, from two tasks at once is not.
+
+Because `SQLiteDatabaseConfiguration` is `Sendable`, Perfect-CRUD's async API works with it: `DatabaseConnectionPool<SQLiteDatabaseConfiguration>`, `transactionAsync`, `sqlAsync`, `insertAsync`, `firstAsync` and `fetchAll()`. They run the blocking SQLite calls on Perfect-CRUD's dispatch queue while the caller waits. For concurrent work, give each task its own connection, for example from a pool:
+
+```swift
+let pool = try DatabaseConnectionPool<SQLiteDatabaseConfiguration>(
+	configuration: .init(minConnections: 1, maxConnections: 4)) {
+	try SQLiteDatabaseConfiguration("./db/database")
+}
+let posts = try await pool.withConnection { db in
+	try await db.table(Post.self).fetchAll()
+}
+```
+
+Connections in a pool are separate SQLite connections to the same file, so writers still take SQLite's database lock one at a time (waiting up to the busy timeout).
 
 ## Dependencies
 
@@ -88,6 +102,7 @@ This stops misspelled names from failing silently. It doesn't make Dynamic field
 - **Unsigned values above `Int64.max`** throw `SQLiteCRUDError` when bound instead of trapping.
 - **Duplicate result column names:** the first column wins (`SELECT a.id, b.id` reads `a.id`); 5.0.0's reader took the last.
 - **`columnText` repairs invalid UTF-8** with U+FFFD replacement characters; 5.0.0 returned `""` for the whole value.
+- **Async and pooling are new** (from Perfect-CRUD 3). `SQLiteDatabaseConfiguration` is `@unchecked Sendable`, so `DatabaseConnectionPool` and the `…Async` methods work with it; use each connection from one task at a time (see above).
 - **The Dynamic API is new** (from Perfect-CRUD 3). `select`, `mutate` and `execute` work, and Dynamic rows fold column names case-insensitively, first wins. `DynamicResult.affectedRows` is always 0 and `insertedID` always nil on this connector. If you need them, read `changes()` or `lastInsertRowID()` on the connection (`SQLiteDatabaseConfiguration.sqlite`) right after the call. `lastInsertRowID()` (and `Insert.lastInsertId()`) return the rowid, which equals your primary key only for an `INTEGER PRIMARY KEY` column; tables CRUD creates declare an integer key as `INT PRIMARY KEY`, so there the rowid is a separate value.
 
 ## Usage Example — raw SQLite API
