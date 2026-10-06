@@ -181,7 +181,7 @@ extension PerfectSQLiteTests {
         #expect(try columnNames(db, of: TestTable1.tableName).contains("int"))
         #expect(try db.table(TestTable2.self).count() == 25)
         // A table nothing references can still be rebuilt in one.
-        try db.transaction {
+        _ = try db.transaction {
             try db.create(ReducedTestTable2.self, policy: [.reconcileTable, .shallow])
         }
         let childTable = TestTable2.CRUDTableName
@@ -206,7 +206,7 @@ extension PerfectSQLiteTests {
             foreignKeysOn = stmt.columnInt(position: 0)
         }
         #expect(foreignKeysOn == 1)
-        try db.transaction {
+        _ = try db.transaction {
             try db.table(TestTable1.self).where(\TestTable1.id == 3).delete()
         }
         #expect(try db.table(TestTable2.self).count() == 20)

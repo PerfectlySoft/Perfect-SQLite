@@ -52,14 +52,14 @@ func getDB(reset: Bool = true) throws -> Database<DBConfiguration> {
     func getTestDB() throws -> Database<DBConfiguration> {
         let db = try getDB()
         try db.create(TestTable1.self, policy: .dropTable)
-        try db.transaction {
+        _ = try db.transaction {
             try db.table(TestTable1.self).insert((1...5).map { num -> TestTable1 in
                 let n = UInt8(num)
                 let blob: [UInt8]? = (num % 2 != 0) ? nil : [UInt8](arrayLiteral: n+1, n+2, n+3, n+4, n+5)
                 return TestTable1(id: num, name: "This is name bind \(num)", integer: num, double: Double(num), blob: blob)
             })
         }
-        try db.transaction {
+        _ = try db.transaction {
             try db.table(TestTable2.self).insert((1...5).flatMap { parentId -> [TestTable2] in
                 (1...5).map { num -> TestTable2 in
                     let n = UInt8(num)
@@ -326,7 +326,7 @@ func getDB(reset: Bool = true) throws -> Database<DBConfiguration> {
     @Test func selfJoin() throws {
         struct Me: Codable { let id: Int; let parentId: Int; let mes: [Me]?; init(id i: Int, parentId p: Int) { id = i; parentId = p; mes = nil } }
         let db = try getTestDB()
-        try db.transaction {
+        _ = try db.transaction {
             try db.create(Me.self, policy: .dropTable)
                 .insert([Me(id: 1, parentId: 0), Me(id: 2, parentId: 1),
                          Me(id: 3, parentId: 1), Me(id: 4, parentId: 1), Me(id: 5, parentId: 1)])
