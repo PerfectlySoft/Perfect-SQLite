@@ -690,15 +690,24 @@ extension SQLite {
 	// the first statement and silently drop the rest. Trailing whitespace, `;` and comments
 	// are fine: preparing them yields no statement.
 	func prepareSingle(statement sql: String) throws -> SQLiteStmt {
+		// SQLite stops reading at a NUL, so anything after one would be silently ignored.
+		guard !sql.utf8.contains(0) else {
+			throw SQLiteCRUDError("The SQL contains a NUL character: \(sql)")
+		}
 		let utf8 = Array(sql.utf8CString)
 		return try utf8.withUnsafeBufferPointer { buf -> SQLiteStmt in
 			guard let base = buf.baseAddress else {
-				throw SQLiteCRUDError("Empty SQL statement.")
+				throw SQLiteCRUDError("No SQL statement to run.")
 			}
 			let length = Int32(buf.count - 1) // without the NUL
 			var first: OpaquePointer? = nil
 			var tail: UnsafePointer<CChar>? = nil
 			try checkRes(sqlite3_prepare_v2(sqlite3, base, length, &first, &tail))
+			// Empty, whitespace-only and comment-only SQL prepares without error but gives no
+			// statement; running it would crash on the nil statement.
+			guard first != nil else {
+				throw SQLiteCRUDError("No SQL statement to run: \(sql)")
+			}
 			let stmt = SQLiteStmt(db: sqlite3, stat: first)
 			// Look for a statement after the first. Preparing the rest is the only reliable way
 			// to skip comments; a later statement that fails to prepare (it might name a table

@@ -21,6 +21,26 @@ import PerfectCRUD
         try db.sql(#"SELECT COUNT(*) AS c FROM "dyn""#, Count.self)[0].c
     }
 
+    @Test func sqlWithNoStatementThrows() throws {
+        let db = try makeDB()
+        // These used to crash on the nil statement SQLite returns for them.
+        for sql in ["", "   ", ";", "-- comment", "/* comment */"] {
+            #expect(throws: SQLiteCRUDError.self, "\(sql)") { try db.sql(sql) }
+            #expect(throws: SQLiteCRUDError.self, "\(sql)") {
+                _ = try db.execute(DynamicSQL(sql: sql, allowsMultipleStatements: true))
+            }
+        }
+    }
+
+    @Test func sqlWithEmbeddedNULThrows() throws {
+        let db = try makeDB()
+        // SQLite stops at a NUL, so the DELETE would be silently ignored.
+        #expect(throws: SQLiteCRUDError.self) {
+            _ = try db.execute(DynamicSQL(sql: "SELECT 1\0; DELETE FROM \"dyn\"", allowsMultipleStatements: true))
+        }
+        #expect(try count(db) == 3)
+    }
+
     @Test func dynamicSelectReturnsRows() throws {
         let db = try makeDB()
         let all = try db.select(DynamicQuery(table: "dyn", orderings: [.init(field: "id")]))
