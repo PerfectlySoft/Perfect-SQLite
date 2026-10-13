@@ -557,16 +557,30 @@ class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 	let database: SQLite
 	let statement: SQLiteStmt
 	let columnMap: SQLiteColumnMap
+	// The columns a Dynamic row gets, in result order.
+	let dynamicColumns: [(name: String, position: Int)]
 	init(_ db: SQLite, stat: SQLiteStmt) {
 		database = db
 		statement = stat
+		// When result columns share a name (`SELECT a.id, b.id`), the first one wins, as
+		// SQLite's own name lookup does. Dynamic rows are keyed case-insensitively
+		// (DynamicRow lowercases its keys, and CRUD 3.0.0 traps on keys that differ only in
+		// case), so there `id` and `ID` count as the same name too.
 		var m = SQLiteColumnMap()
+		var dynamic: [(name: String, position: Int)] = []
+		var dynamicSeen = Set<String>()
 		let count = statement.columnCount()
 		for i in 0..<count {
 			let name = statement.columnName(position: i)
-			m[name] = i
+			if m[name] == nil {
+				m[name] = i
+			}
+			if dynamicSeen.insert(name.lowercased()).inserted {
+				dynamic.append((name, i))
+			}
 		}
 		columnMap = m
+		dynamicColumns = dynamic
 	}
 	func bind(_ binds: Bindings, skip: Int) throws {
 		_ = try statement.reset()
@@ -589,7 +603,7 @@ class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 	}
 	func nextDynamicRow() throws -> DynamicRow? {
 		var values: [String: DynamicValue] = [:]
-		for (name, position) in columnMap {
+		for (name, position) in dynamicColumns {
 			values[name] = sqliteDynamicValue(statement, position: position)
 		}
 		return DynamicRow(values)
@@ -623,11 +637,11 @@ class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 		case .integer(let i):
 			try statement.bind(position: position, i)
 		case .uinteger(let i):
-			try statement.bind(position: position, Int(i))
+			try statement.bind(position: position, try sqliteInteger(i))
 		case .integer64(let i):
 			try statement.bind(position: position, Int(i))
 		case .uinteger64(let i):
-			try statement.bind(position: position, Int(i))
+			try statement.bind(position: position, try sqliteInteger(i))
 		case .integer32(let i):
 			try statement.bind(position: position, Int(i))
 		case .uinteger32(let i):
@@ -648,6 +662,14 @@ class SQLiteExeDelegate: SQLExeDelegate, @unchecked Sendable {
 	}
 }
 
+// SQLite integers are signed 64-bit. `Int(i)` trapped on an unsigned value above Int64.max.
+func sqliteInteger<U: UnsignedInteger>(_ value: U) throws -> Int64 {
+	guard let i = Int64(exactly: value) else {
+		throw SQLiteCRUDError("Unsigned value \(value) doesn't fit in SQLite's 64-bit signed INTEGER.")
+	}
+	return i
+}
+
 func sqliteDynamicValue(_ statement: SQLiteStmt, position: Int) -> DynamicValue {
 	if statement.isNull(position: position) {
 		return .null
@@ -661,12 +683,74 @@ func sqliteDynamicValue(_ statement: SQLiteStmt, position: Int) -> DynamicValue 
 	return .string(statement.columnText(position: position))
 }
 
-public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
+extension SQLite {
+	// Prepares the first statement of `sql` and throws if another statement follows it.
+	// An SQLExeDelegate runs exactly one statement, and sqlite3_prepare_v2 stops after the
+	// first one, so `execute(DynamicSQL(..., allowsMultipleStatements: true))` used to run
+	// the first statement and silently drop the rest. Trailing whitespace, `;` and comments
+	// are fine: preparing them yields no statement.
+	func prepareSingle(statement sql: String) throws -> SQLiteStmt {
+		// SQLite stops reading at a NUL, so anything after one would be silently ignored.
+		guard !sql.utf8.contains(0) else {
+			throw SQLiteCRUDError("The SQL contains a NUL character: \(sql)")
+		}
+		let utf8 = Array(sql.utf8CString)
+		return try utf8.withUnsafeBufferPointer { buf -> SQLiteStmt in
+			guard let base = buf.baseAddress else {
+				throw SQLiteCRUDError("No SQL statement to run.")
+			}
+			let length = Int32(buf.count - 1) // without the NUL
+			var first: OpaquePointer? = nil
+			var tail: UnsafePointer<CChar>? = nil
+			try checkRes(sqlite3_prepare_v2(sqlite3, base, length, &first, &tail))
+			// Empty, whitespace-only and comment-only SQL prepares without error but gives no
+			// statement; running it would crash on the nil statement.
+			guard first != nil else {
+				throw SQLiteCRUDError("No SQL statement to run: \(sql)")
+			}
+			let stmt = SQLiteStmt(db: sqlite3, stat: first)
+			// Look for a statement after the first. Preparing the rest is the only reliable way
+			// to skip comments; a later statement that fails to prepare (it might name a table
+			// the first one creates) is still a second statement.
+			while let rest = tail, rest < base + Int(length) {
+				var next: OpaquePointer? = nil
+				var nextTail: UnsafePointer<CChar>? = nil
+				let remaining = Int32(base + Int(length) - rest)
+				let res = sqlite3_prepare_v2(sqlite3, rest, remaining, &next, &nextTail)
+				if res != SQLITE_OK || next != nil {
+					sqlite3_finalize(next)
+					stmt.finalize()
+					throw SQLiteCRUDError("SQLite runs one statement at a time, but the SQL has more than one statement: \(sql)")
+				}
+				guard let nt = nextTail, nt > rest else { break }
+				tail = nt
+			}
+			return stmt
+		}
+	}
+}
+
+// `@unchecked Sendable`, so it works with Perfect-CRUD's `DatabaseConnectionPool` and the
+// `…Async` / `fetchAll()` methods, which need `C: Sendable`. Its stored properties are a
+// `String` and the `SQLite` connection, a class around a raw `sqlite3*` with no locking of
+// its own (also `@unchecked Sendable`).
+//
+// What makes that safe is using one connection from one task at a time. The async methods
+// run the blocking work on Perfect-CRUD's dispatch queue while the caller waits, and the pool
+// checks a connection out to one caller at a time, so a connection moves between threads but
+// isn't used by two at once. SQLite allows that in its multi-thread mode, which is how the
+// Apple SDKs build it (`sqlite3_threadsafe()` is 2), and in serialized mode (1, Ubuntu's
+// libsqlite3). It isn't safe with a library built single-threaded (0). Connections are opened
+// without SQLITE_OPEN_FULLMUTEX, so under multi-thread mode, using one connection (or one
+// `Database` value) from two tasks at the same time is a data race in SQLite itself. Even
+// where the library serializes calls, two tasks would interleave each other's statements and
+// transactions. Give each concurrent task its own connection, for example from a pool.
+public struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol, @unchecked Sendable {
 	public var sqlGenDelegate: SQLGenDelegate {
 		return SQLiteGenDelegate(sqlite)
 	}
 	public func sqlExeDelegate(forSQL sql: String) throws -> SQLExeDelegate {
-		let prep = try sqlite.prepare(statement: sql)
+		let prep = try sqlite.prepareSingle(statement: sql)
 		return SQLiteExeDelegate(sqlite, stat: prep)
 	}
 	public let name: String
