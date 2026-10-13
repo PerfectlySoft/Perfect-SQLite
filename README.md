@@ -47,7 +47,7 @@ This package has a single dependency:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "3.0.0"),
+    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "3.0.1"),
 ],
 ```
 
